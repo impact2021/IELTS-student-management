@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IELTS Membership System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .section {
+            margin-bottom: 40px;
+        }
+        
+        .section h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+        }
+        
+        .section p {
+            margin-bottom: 15px;
+            color: #666;
+        }
+        
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+        
+        .feature {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .feature h3 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .feature p {
+            color: #666;
+            font-size: 0.95em;
+        }
+        
+        .api-section {
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        
+        .api-section h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+        
+        .endpoint {
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            border-left: 3px solid #667eea;
+        }
+        
+        .endpoint code {
+            display: block;
+            background: #2d3748;
+            color: #68d391;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+            overflow-x: auto;
+            font-size: 0.9em;
+        }
+        
+        .method {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 0.85em;
+            margin-right: 10px;
+        }
+        
+        .method.get { background: #4299e1; color: white; }
+        .method.post { background: #48bb78; color: white; }
+        .method.put { background: #ed8936; color: white; }
+        .method.delete { background: #f56565; color: white; }
+        
+        .plans {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .plan {
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 25px;
+            text-align: center;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        
+        .plan:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            border-color: #667eea;
+        }
+        
+        .plan h3 {
+            color: #667eea;
+            font-size: 1.5em;
+            margin-bottom: 10px;
+        }
+        
+        .plan .price {
+            font-size: 2em;
+            font-weight: bold;
+            color: #333;
+            margin: 15px 0;
+        }
+        
+        .plan .duration {
+            color: #666;
+            margin-bottom: 20px;
+        }
+        
+        .plan ul {
+            list-style: none;
+            text-align: left;
+            margin: 20px 0;
+        }
+        
+        .plan ul li {
+            padding: 8px 0;
+            color: #666;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .plan ul li:before {
+            content: "✓ ";
+            color: #48bb78;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        
+        footer {
+            background: #2d3748;
+            color: white;
+            text-align: center;
+            padding: 30px;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-top: 20px;
+            transition: transform 0.3s;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎓 IELTS Student Management</h1>
+            <p>Complete Membership System</p>
+        </header>
+        
+        <div class="content">
+            <div class="section">
+                <h2>Welcome to the Membership System</h2>
+                <p>A comprehensive membership management platform designed specifically for IELTS student management. This system replaces Amember with a modern, self-hosted solution built with Node.js and Express.</p>
+            </div>
+            
+            <div class="section">
+                <h2>Key Features</h2>
+                <div class="features">
+                    <div class="feature">
+                        <h3>🔐 Secure Authentication</h3>
+                        <p>JWT-based authentication with bcrypt password hashing for maximum security</p>
+                    </div>
+                    <div class="feature">
+                        <h3>💳 Flexible Plans</h3>
+                        <p>Multiple membership tiers with customizable features and pricing</p>
+                    </div>
+                    <div class="feature">
+                        <h3>📊 Payment Tracking</h3>
+                        <p>Complete payment history and transaction management</p>
+                    </div>
+                    <div class="feature">
+                        <h3>⚡ REST API</h3>
+                        <p>Modern REST API ready for integration with any frontend</p>
+                    </div>
+                    <div class="feature">
+                        <h3>🔄 Auto-Expiration</h3>
+                        <p>Automatic membership expiration and renewal management</p>
+                    </div>
+                    <div class="feature">
+                        <h3>📱 Mobile Ready</h3>
+                        <p>API designed for mobile app and web integration</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>Membership Plans</h2>
+                <div class="plans">
+                    <div class="plan">
+                        <h3>Free Trial</h3>
+                        <div class="price">$0</div>
+                        <div class="duration">7 days</div>
+                        <ul>
+                            <li>Basic IELTS materials</li>
+                            <li>Limited practice tests</li>
+                            <li>7 days access</li>
+                        </ul>
+                    </div>
+                    <div class="plan">
+                        <h3>Basic</h3>
+                        <div class="price">$29.99</div>
+                        <div class="duration">30 days</div>
+                        <ul>
+                            <li>All IELTS materials</li>
+                            <li>Unlimited practice tests</li>
+                            <li>Score tracking</li>
+                            <li>Email support</li>
+                        </ul>
+                    </div>
+                    <div class="plan">
+                        <h3>Premium</h3>
+                        <div class="price">$79.99</div>
+                        <div class="duration">90 days</div>
+                        <ul>
+                            <li>All Basic features</li>
+                            <li>Live online classes</li>
+                            <li>One-on-one tutoring</li>
+                            <li>Writing evaluation</li>
+                            <li>Speaking practice with AI</li>
+                            <li>Priority support</li>
+                        </ul>
+                    </div>
+                    <div class="plan">
+                        <h3>Professional</h3>
+                        <div class="price">$199.99</div>
+                        <div class="duration">365 days</div>
+                        <ul>
+                            <li>All Premium features</li>
+                            <li>Unlimited live classes</li>
+                            <li>Weekly one-on-one sessions</li>
+                            <li>Personalized study plan</li>
+                            <li>Mock exams with feedback</li>
+                            <li>24/7 priority support</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>API Documentation</h2>
+                <div class="api-section">
+                    <h3>Authentication</h3>
+                    <div class="endpoint">
+                        <span class="method post">POST</span>
+                        <strong>/api/auth/register</strong>
+                        <p>Register a new user</p>
+                        <code>{ "email": "user@example.com", "password": "pass", "firstName": "John", "lastName": "Doe" }</code>
+                    </div>
+                    <div class="endpoint">
+                        <span class="method post">POST</span>
+                        <strong>/api/auth/login</strong>
+                        <p>Login and receive JWT token</p>
+                        <code>{ "email": "user@example.com", "password": "pass" }</code>
+                    </div>
+                    <div class="endpoint">
+                        <span class="method get">GET</span>
+                        <strong>/api/auth/profile</strong>
+                        <p>Get current user profile (requires auth)</p>
+                    </div>
+                </div>
+                
+                <div class="api-section">
+                    <h3>Membership Management</h3>
+                    <div class="endpoint">
+                        <span class="method get">GET</span>
+                        <strong>/api/membership/plans</strong>
+                        <p>Get all membership plans</p>
+                    </div>
+                    <div class="endpoint">
+                        <span class="method post">POST</span>
+                        <strong>/api/membership/subscribe</strong>
+                        <p>Subscribe to a membership plan</p>
+                        <code>{ "planId": 1, "paymentMethod": "credit_card", "transactionId": "txn_123" }</code>
+                    </div>
+                    <div class="endpoint">
+                        <span class="method get">GET</span>
+                        <strong>/api/membership/my-membership</strong>
+                        <p>Get active membership details</p>
+                    </div>
+                    <div class="endpoint">
+                        <span class="method post">POST</span>
+                        <strong>/api/membership/renew</strong>
+                        <p>Renew membership with a new plan</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section" style="text-align: center;">
+                <h2>Get Started</h2>
+                <p>The API is running and ready to use. Check the README.md for complete documentation.</p>
+                <a href="/api/auth/register" class="btn">View API Endpoint</a>
+            </div>
+        </div>
+        
+        <footer>
+            <p>IELTS Student Management System &copy; 2024</p>
+            <p>Built with Node.js, Express, and SQLite</p>
+        </footer>
+    </div>
+</body>
+</html>
