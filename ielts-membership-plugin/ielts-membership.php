@@ -87,7 +87,9 @@ function iw_enqueue_assets() {
     wp_localize_script('iw-membership-script', 'iwMembership', array(
         'ajaxUrl' => admin_url('admin-ajax.php'),
         'nonce' => wp_create_nonce('iw_membership_nonce'),
-        'apiUrl' => get_option('iw_api_url', 'http://localhost:3000/api')
+        'apiUrl' => get_option('iw_api_url', 'http://localhost:3000/api'),
+        'myAccountUrl' => home_url('/my-account/'),
+        'loginUrl' => home_url('/login/')
     ));
 }
 

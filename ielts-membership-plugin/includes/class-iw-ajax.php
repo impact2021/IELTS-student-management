@@ -44,9 +44,10 @@ class IW_AJAX {
         $result = $api->register($email, $password, $first_name, $last_name);
         
         if ($result['success']) {
-            // Store token in user session
+            // Store token in secure cookie
             if (isset($result['data']['token'])) {
-                setcookie('iw_token', $result['data']['token'], time() + (7 * 24 * 60 * 60), '/');
+                $secure = is_ssl();
+                setcookie('iw_token', $result['data']['token'], time() + (7 * 24 * 60 * 60), '/', '', $secure, true);
             }
             
             wp_send_json_success(array(
@@ -75,9 +76,10 @@ class IW_AJAX {
         $result = $api->login($email, $password);
         
         if ($result['success']) {
-            // Store token in cookie
+            // Store token in secure cookie
             if (isset($result['data']['token'])) {
-                setcookie('iw_token', $result['data']['token'], time() + (7 * 24 * 60 * 60), '/');
+                $secure = is_ssl();
+                setcookie('iw_token', $result['data']['token'], time() + (7 * 24 * 60 * 60), '/', '', $secure, true);
             }
             
             wp_send_json_success(array(
@@ -151,7 +153,7 @@ class IW_AJAX {
             wp_send_json_error(array('message' => 'Plan ID is required'));
         }
         
-        $transaction_id = 'wp_' . uniqid();
+        $transaction_id = 'wp_' . wp_generate_password(20, false);
         
         $api = new IW_API_Client();
         $result = $api->subscribe($plan_id, $payment_method, $transaction_id, $token);
@@ -172,7 +174,8 @@ class IW_AJAX {
     public function handle_logout() {
         check_ajax_referer('iw_membership_nonce', 'nonce');
         
-        setcookie('iw_token', '', time() - 3600, '/');
+        $secure = is_ssl();
+        setcookie('iw_token', '', time() - 3600, '/', '', $secure, true);
         
         wp_send_json_success(array(
             'message' => 'Logged out successfully',

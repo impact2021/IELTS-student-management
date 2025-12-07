@@ -72,7 +72,8 @@ class IW_Activator {
         
         if ($page) {
             // Page exists, check if it has the shortcode
-            if (strpos($page->post_content, $page_data['shortcode']) === false) {
+            $shortcode_tag = str_replace(array('[', ']'), '', $page_data['shortcode']);
+            if (!has_shortcode($page->post_content, $shortcode_tag)) {
                 // Update page content to include shortcode
                 wp_update_post(array(
                     'ID' => $page->ID,

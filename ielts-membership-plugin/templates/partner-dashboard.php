@@ -52,7 +52,7 @@ jQuery(document).ready(function($) {
             html += '<p class="iw-plan-name">' + data.membership.plan_name + '</p>';
             html += '<p class="iw-status-badge iw-status-' + data.membership.status + '">' + data.membership.status.toUpperCase() + '</p>';
             html += '<p class="iw-expiry">Expires: ' + new Date(data.membership.end_date).toLocaleDateString() + '</p>';
-            html += '<a href="' + '<?php echo home_url('/my-account/'); ?>' + '" class="iw-btn iw-btn-sm">View Details</a>';
+            html += '<a href="' + iwMembership.myAccountUrl + '" class="iw-btn iw-btn-sm">View Details</a>';
             html += '</div>';
         } else {
             html += '<p>No active membership</p>';
@@ -64,7 +64,7 @@ jQuery(document).ready(function($) {
         html += '<div class="iw-dashboard-card iw-actions-card">';
         html += '<h3>Quick Actions</h3>';
         html += '<ul class="iw-action-list">';
-        html += '<li><a href="' + '<?php echo home_url('/my-account/'); ?>' + '">View My Account</a></li>';
+        html += '<li><a href="' + iwMembership.myAccountUrl + '">View My Account</a></li>';
         html += '<li><a href="#">Browse Materials</a></li>';
         html += '<li><a href="#">Practice Tests</a></li>';
         html += '<li><a href="#">Contact Support</a></li>';

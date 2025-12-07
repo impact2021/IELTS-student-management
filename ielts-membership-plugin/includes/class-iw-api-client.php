@@ -95,7 +95,7 @@ class IW_API_Client {
         }
         
         $args = array(
-            'timeout' => 30,
+            'timeout' => 15,
             'headers' => array(
                 'Content-Type' => 'application/json'
             )
@@ -117,7 +117,7 @@ class IW_API_Client {
         $url = $this->api_url . $endpoint;
         
         $args = array(
-            'timeout' => 30,
+            'timeout' => 15,
             'headers' => array(
                 'Content-Type' => 'application/json'
             ),
