@@ -65,18 +65,8 @@ class User {
   }
 
   static async getActiveMembership(userId) {
-    const membership = await db.get(`
-      SELECT um.*, mp.name as plan_name, mp.description, mp.price
-      FROM user_memberships um
-      JOIN membership_plans mp ON um.plan_id = mp.id
-      WHERE um.user_id = ? 
-        AND um.status = 'active'
-        AND um.end_date > CURRENT_TIMESTAMP
-      ORDER BY um.end_date DESC
-      LIMIT 1
-    `, [userId]);
-    
-    return membership;
+    const UserMembership = require('./UserMembership');
+    return await UserMembership.getActiveMembership(userId);
   }
 }
 

@@ -53,7 +53,7 @@ class UserMembership {
       JOIN membership_plans mp ON um.plan_id = mp.id
       WHERE um.user_id = ? 
         AND um.status = 'active'
-        AND um.end_date > datetime('now')
+        AND um.end_date > CURRENT_TIMESTAMP
       ORDER BY um.end_date DESC
       LIMIT 1
     `, [userId]);
@@ -85,7 +85,7 @@ class UserMembership {
   }
 
   static async cancelMembership(id) {
-    await db.run('UPDATE user_memberships SET status = "cancelled" WHERE id = ?', [id]);
+    await db.run('UPDATE user_memberships SET status = \'cancelled\' WHERE id = ?', [id]);
     return await this.findById(id);
   }
 
