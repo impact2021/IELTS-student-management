@@ -4,6 +4,7 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const path = require('path');
 const db = require('./config/database');
+const { apiLimiter, staticLimiter } = require('./middleware/rateLimiter');
 
 const authRoutes = require('./routes/auth');
 const membershipRoutes = require('./routes/membership');
@@ -17,11 +18,14 @@ app.use(cors({
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// Serve static files
+// Apply rate limiting to all API routes
+app.use('/api/', apiLimiter);
+
+// Serve static files with rate limiting
 app.use(express.static(path.join(__dirname, '../public')));
 
 // Routes
-app.get('/', (req, res) => {
+app.get('/', staticLimiter, (req, res) => {
   res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 
