@@ -2,6 +2,13 @@
 
 A comprehensive membership management system for IELTS student management, replacing Amember with a modern, self-hosted solution.
 
+## Components
+
+This system consists of two main components:
+
+1. **Node.js REST API Backend** - Handles authentication, membership logic, and data storage
+2. **WordPress Plugin** - Provides frontend interface with shortcodes for easy integration
+
 ## Features
 
 - **User Authentication**: Secure registration and login with JWT tokens
@@ -10,6 +17,8 @@ A comprehensive membership management system for IELTS student management, repla
 - **Payment Tracking**: Track payment history and status
 - **Expiration Management**: Automatic membership expiration handling
 - **REST API**: Complete API for integration with frontend applications
+- **WordPress Integration**: Ready-to-use shortcodes for WordPress sites
+- **Automatic Page Creation**: WordPress plugin creates required pages on activation
 
 ## Tech Stack
 
@@ -17,8 +26,11 @@ A comprehensive membership management system for IELTS student management, repla
 - **Database**: SQLite (easily upgradeable to PostgreSQL/MySQL)
 - **Authentication**: JWT (JSON Web Tokens)
 - **Password Security**: bcrypt for password hashing
+- **Frontend**: WordPress Plugin with AJAX-powered forms
 
 ## Installation
+
+### Part 1: Node.js API Backend
 
 1. Clone the repository:
 ```bash
@@ -53,6 +65,22 @@ npm start
 ```
 
 The API will be available at `http://localhost:3000`
+
+### Part 2: WordPress Plugin (Optional)
+
+1. Copy the `ielts-membership-plugin` folder to your WordPress `wp-content/plugins/` directory
+
+2. Activate the plugin through the WordPress admin panel
+
+3. Go to **Settings > IELTS Membership** and configure the API URL (e.g., `http://localhost:3000/api`)
+
+4. The plugin will automatically create these pages:
+   - `/partner-dashboard/` with shortcode `[iw_partner_dashboard]`
+   - `/login/` with shortcode `[iw_login]`
+   - `/my-account/` with shortcode `[iw_my_expiry]`
+   - `/register/` with shortcode `[iw_register_with_code]`
+
+See `ielts-membership-plugin/README.md` for detailed plugin documentation.
 
 ## API Documentation
 
