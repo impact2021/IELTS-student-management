@@ -68,13 +68,23 @@ The API will be available at `http://localhost:3000`
 
 ### Part 2: WordPress Plugin (Optional)
 
-1. Copy the `ielts-membership-plugin` folder to your WordPress `wp-content/plugins/` directory
+#### Option A: Upload via WordPress Admin (Recommended)
 
+1. Download or create a zip file of the entire repository
+2. In WordPress admin, go to **Plugins > Add New > Upload Plugin**
+3. Upload the zip file and click **Install Now**
+4. Activate the plugin
+5. Go to **Settings > IELTS Membership** and configure the API URL (e.g., `http://localhost:3000/api`)
+
+#### Option B: Manual Installation
+
+1. Copy the entire repository folder to your WordPress `wp-content/plugins/` directory (or just the `ielts-membership-plugin` subfolder)
 2. Activate the plugin through the WordPress admin panel
-
 3. Go to **Settings > IELTS Membership** and configure the API URL (e.g., `http://localhost:3000/api`)
 
-4. The plugin will automatically create these pages:
+#### What Gets Created
+
+The plugin will automatically create these pages on activation:
    - `/partner-dashboard/` with shortcode `[iw_partner_dashboard]`
    - `/login/` with shortcode `[iw_login]`
    - `/my-account/` with shortcode `[iw_my_expiry]`
