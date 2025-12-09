@@ -24,7 +24,7 @@ if (defined('IW_PLUGIN_VERSION')) {
 }
 
 // Check if the plugin directory exists
-$iw_plugin_subdir = dirname(__FILE__) . '/ielts-membership-plugin';
+$iw_plugin_subdir = __DIR__ . '/ielts-membership-plugin';
 $iw_plugin_file = $iw_plugin_subdir . '/ielts-membership.php';
 
 if (file_exists($iw_plugin_file)) {
@@ -32,14 +32,19 @@ if (file_exists($iw_plugin_file)) {
     require_once $iw_plugin_file;
 } else {
     // If subdirectory doesn't exist, show an error in admin
-    add_action('admin_notices', function() {
-        if (!current_user_can('manage_options')) {
-            return;
-        }
-        ?>
-        <div class="notice notice-error">
-            <p><strong>IELTS Membership System:</strong> Plugin directory structure is incomplete. Please ensure the 'ielts-membership-plugin' directory exists within the plugin folder.</p>
-        </div>
-        <?php
-    });
+    add_action('admin_notices', 'iw_wrapper_missing_directory_notice');
+}
+
+/**
+ * Display admin notice when plugin subdirectory is missing
+ */
+function iw_wrapper_missing_directory_notice() {
+    if (!current_user_can('manage_options')) {
+        return;
+    }
+    ?>
+    <div class="notice notice-error">
+        <p><strong>IELTS Membership System:</strong> Plugin directory structure is incomplete. Please ensure the 'ielts-membership-plugin' directory exists within the plugin folder.</p>
+    </div>
+    <?php
 }
