@@ -14,7 +14,19 @@ A WordPress plugin that integrates with the IELTS Membership System REST API to 
 
 ## Installation
 
-1. Copy the `ielts-membership-plugin` folder to your WordPress `wp-content/plugins/` directory
+### Option A: Upload via WordPress Admin (Recommended)
+
+1. Download or create a zip file of the repository
+2. In WordPress admin, go to **Plugins > Add New > Upload Plugin**
+3. Upload the zip file and click **Install Now**
+4. Activate the plugin
+5. Configure the API URL in Settings > IELTS Membership
+
+**Note:** The entire repository can be uploaded as a plugin. WordPress will recognize it automatically.
+
+### Option B: Manual Installation
+
+1. Copy the entire repository folder (or just the `ielts-membership-plugin` subfolder) to your WordPress `wp-content/plugins/` directory
 2. Activate the plugin through the WordPress admin panel
 3. Configure the API URL in Settings > IELTS Membership
 
