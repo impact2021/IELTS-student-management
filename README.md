@@ -90,6 +90,8 @@ The plugin will automatically create these pages on activation:
    - `/my-account/` with shortcode `[iw_my_expiry]`
    - `/register/` with shortcode `[iw_register_with_code]`
 
+**Note:** If you deactivate and reactivate the plugin, it will ensure all published pages exist. If pages were moved to trash or are in draft status, new published pages will be created.
+
 See `ielts-membership-plugin/README.md` for detailed plugin documentation.
 
 ## API Documentation

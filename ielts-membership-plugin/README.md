@@ -47,7 +47,11 @@ The plugin automatically creates the following pages when activated:
 3. **/my-account/** - Account Details with shortcode `[iw_my_expiry]`
 4. **/register/** - Registration Form with shortcode `[iw_register_with_code]`
 
-If these pages already exist, the plugin will add the shortcode to the existing content.
+**Page Creation Behavior:**
+- If a published page with the same slug exists, the plugin will update it to include the shortcode
+- If a page exists but is in trash or draft status, the plugin will create a new published page
+- When you deactivate and reactivate the plugin, it will ensure all required published pages exist
+- This ensures that you always have working published pages after reactivation
 
 ## Shortcodes
 
