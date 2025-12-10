@@ -754,16 +754,18 @@ class Impact_Websites_Student_Management {
 			$exp = intval( get_user_meta( $uid, self::META_USER_EXPIRY, true ) );
 			if ( $exp && $exp <= $now ) {
 				$manager_id = intval( get_user_meta( $uid, self::META_USER_MANAGER, true ) );
+				// Get user data before deletion for notification
+				$user_data = get_userdata( $uid );
 				if ( 'delete_user' === $action ) {
 					if ( $manager_id ) {
-						$this->notify_partner_user_expired( $manager_id, $uid, $exp );
+						$this->notify_partner_user_expired( $manager_id, $uid, $exp, $user_data );
 					}
 					wp_delete_user( $uid );
 				} elseif ( 'remove_enrollment' === $action ) {
 					$this->remove_user_enrollments( $uid );
 					wp_update_user( [ 'ID' => $uid, 'role' => 'expired' ] );
 					if ( $manager_id ) {
-						$this->notify_partner_user_expired( $manager_id, $uid, $exp );
+						$this->notify_partner_user_expired( $manager_id, $uid, $exp, $user_data );
 					}
 				}
 			}
@@ -790,7 +792,7 @@ class Impact_Websites_Student_Management {
 		$message .= "Email: " . $user->user_email . "\n";
 		$message .= "Expires: " . $expiry_text . "\n\n";
 		$message .= "They have been enrolled in all courses.\n\n";
-		$message .= "Regards,\nPatrick Bourne";
+		$message .= "Regards,\nImpact Websites";
 		wp_mail( $to, $subject, $message );
 	}
 
@@ -811,7 +813,7 @@ class Impact_Websites_Student_Management {
 		wp_mail( $to, $subject, $message );
 	}
 
-	private function notify_partner_user_expired( $partner_id, $user_id, $expiry_ts ) {
+	private function notify_partner_user_expired( $partner_id, $user_id, $expiry_ts, $user_data = null ) {
 		$partner = get_userdata( $partner_id );
 		if ( ! $partner ) {
 			return;
@@ -820,9 +822,11 @@ class Impact_Websites_Student_Management {
 		if ( empty( $to ) ) {
 			return;
 		}
-		$subject = sprintf( 'User expired: %s', $user_id );
+		// Use provided user data or user_id as fallback
+		$user_identifier = $user_data ? $user_data->user_login : "User ID {$user_id}";
+		$subject = sprintf( 'User expired: %s', $user_identifier );
 		$message = "Hello " . $partner->display_name . ",\n\n";
-		$message .= "The user with ID {$user_id} expired on " . $this->format_date( $expiry_ts ) . " and has been removed/updated according to site policy.\n\n";
+		$message .= "The user {$user_identifier} expired on " . $this->format_date( $expiry_ts ) . " and has been removed/updated according to site policy.\n\n";
 		$message .= "Regards,\nImpact Websites";
 		wp_mail( $to, $subject, $message );
 	}
@@ -959,9 +963,8 @@ class Impact_Websites_Student_Management {
 			return;
 		}
 
-		// Build current URL
-		$scheme = is_ssl() ? 'https' : 'http';
-		$current_url = $scheme . '://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
+		// Build current URL safely
+		$current_url = ( is_ssl() ? 'https://' : 'http://' ) . sanitize_text_field( wp_unslash( $_SERVER['HTTP_HOST'] ) ) . sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) );
 
 		// Parse URLs and compare host+path only
 		$login_parts = wp_parse_url( $login_url );
