@@ -244,22 +244,7 @@ class Impact_Websites_Student_Management {
 		<script>
 		jQuery(document).ready(function($) {
 			// Auto-fill empty URL fields with placeholder values on focus
-			$('#iw_post_register_redirect').on('focus', function() {
-				if ($(this).val() === '') {
-					$(this).val($(this).attr('placeholder'));
-				}
-			});
-			$('#iw_post_register_redirect_partner').on('focus', function() {
-				if ($(this).val() === '') {
-					$(this).val($(this).attr('placeholder'));
-				}
-			});
-			$('#iw_login_page_url').on('focus', function() {
-				if ($(this).val() === '') {
-					$(this).val($(this).attr('placeholder'));
-				}
-			});
-			$('#iw_registration_page_url').on('focus', function() {
+			$('#iw_post_register_redirect, #iw_post_register_redirect_partner, #iw_login_page_url, #iw_registration_page_url').on('focus', function() {
 				if ($(this).val() === '') {
 					$(this).val($(this).attr('placeholder'));
 				}
