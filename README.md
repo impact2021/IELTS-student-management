@@ -1,24 +1,27 @@
-# IELTS Student Management - Membership System
+# IELTS Student Management - Impact Websites Student Management Plugin
 
-A comprehensive membership management system for IELTS student management, replacing Amember with a modern, self-hosted solution.
+A comprehensive partner-admin invite system for LearnDash with shared partner dashboard functionality.
+
+## Overview
+
+This WordPress plugin provides a complete student management system where partner administrators can create and manage invite codes for students. It features a global shared dashboard where all partner admins see the same codes and users (shared company pool).
+
+## Key Features
+
+- **Partner Admin Role**: Dedicated role with capability to manage invites
+- **Single-Use Invite Codes**: Generate up to 10 invite codes at once
+- **Global Shared Dashboard**: All partner admins see the same invites and managed users
+- **LearnDash Integration**: Auto-enrollment in ALL LearnDash courses upon registration
+- **Site-Wide Login Enforcement**: Public access only to configured login and registration pages
+- **Expiration Management**: Automatic user expiration with email notifications
+- **WordPress Integration**: Ready-to-use shortcodes for dashboard, login, registration, and expiry display
 
 ## Components
 
 This system consists of two main components:
 
-1. **Node.js REST API Backend** - Handles authentication, membership logic, and data storage
-2. **WordPress Plugin** - Provides frontend interface with shortcodes for easy integration
-
-## Features
-
-- **User Authentication**: Secure registration and login with JWT tokens
-- **Membership Plans**: Multiple tiers (Free Trial, Basic, Premium, Professional)
-- **Subscription Management**: Subscribe, renew, and cancel memberships
-- **Payment Tracking**: Track payment history and status
-- **Expiration Management**: Automatic membership expiration handling
-- **REST API**: Complete API for integration with frontend applications
-- **WordPress Integration**: Ready-to-use shortcodes for WordPress sites
-- **Automatic Page Creation**: WordPress plugin creates required pages on activation
+1. **WordPress Plugin** - Main student management functionality with partner dashboard
+2. **Node.js REST API Backend** (Optional) - Handles authentication, membership logic, and data storage for extended features
 
 ## Tech Stack
 
@@ -66,7 +69,7 @@ npm start
 
 The API will be available at `http://localhost:3000`
 
-### Part 2: WordPress Plugin (Optional)
+### WordPress Plugin Installation
 
 #### Option A: Upload via WordPress Admin (Recommended)
 
@@ -74,25 +77,190 @@ The API will be available at `http://localhost:3000`
 2. In WordPress admin, go to **Plugins > Add New > Upload Plugin**
 3. Upload the zip file and click **Install Now**
 4. Activate the plugin
-5. Go to **Settings > IELTS Membership** and configure the API URL (e.g., `http://localhost:3000/api`)
+5. Go to **Partnership area > Settings** in the WordPress admin sidebar
+6. Configure the settings:
+   - **Login page URL**: Full URL of the page with `[iw_login]` shortcode
+   - **Registration page URL**: Full URL of the page with `[iw_register_with_code]` shortcode (must be publicly accessible)
+   - **Default invite length (days)**: How long invite codes are valid (e.g., 30, 60, 90 days)
+   - **Max students per partner**: Maximum active students (0 = unlimited)
+   - **Action on user expiry**: Choose to delete user or just remove LearnDash enrollment
+   - **Post-registration redirect URLs**: Where to send users after successful registration
 
 #### Option B: Manual Installation
 
-1. Copy the entire repository folder to your WordPress `wp-content/plugins/` directory (or just the `ielts-membership-plugin` subfolder)
+1. Copy the entire repository folder to your WordPress `wp-content/plugins/` directory
 2. Activate the plugin through the WordPress admin panel
-3. Go to **Settings > IELTS Membership** and configure the API URL (e.g., `http://localhost:3000/api`)
+3. A new **Partnership area** menu item will appear in the WordPress admin sidebar
+4. Go to **Partnership area > Settings** to configure the plugin
 
-#### What Gets Created
+#### Required Pages
 
-The plugin will automatically create these pages on activation:
-   - `/partner-dashboard/` with shortcode `[iw_partner_dashboard]`
-   - `/login/` with shortcode `[iw_login]`
-   - `/my-account/` with shortcode `[iw_my_expiry]`
-   - `/register/` with shortcode `[iw_register_with_code]`
+Create these pages with the specified shortcodes:
 
-**Note:** If you deactivate and reactivate the plugin, it will ensure all published pages exist. If pages were moved to trash or are in draft status, new published pages will be created.
+1. **Partner Dashboard** - Add shortcode `[iw_partner_dashboard]`
+   - Only accessible to users with partner admin capability
+   
+2. **Login Page** - Add shortcode `[iw_login]`
+   - Configure the full URL in plugin settings
+   
+3. **Registration Page** - Add shortcode `[iw_register_with_code]`
+   - Configure the full URL in plugin settings
+   - Must be publicly accessible (exempted from site-wide login enforcement)
+   
+4. **My Account / Expiry Page** - Add shortcode `[iw_my_expiry]`
+   - Shows logged-in user's membership expiration date
 
-See `ielts-membership-plugin/README.md` for detailed plugin documentation.
+#### Admin Menu
+
+After activation, you'll see a **Partnership area** menu in the WordPress admin sidebar with:
+- Settings page for configuring plugin options
+- Dashboard icon (network/connections icon)
+
+## Usage Workflow
+
+### For Administrators
+
+1. **Initial Setup**:
+   - Activate the plugin
+   - Create the required pages with shortcodes
+   - Configure settings in **Partnership area > Settings**
+   - Create partner admin users or assign the `partner_admin` role to existing users
+
+2. **Managing Partner Admins**:
+   - Users with administrator, partner_admin, or impact_manager roles can manage invites
+   - All partner admins share the same pool of invites and students (global dashboard)
+
+### For Partner Admins
+
+1. **Access Partner Dashboard**:
+   - Log in to WordPress
+   - Navigate to the page containing `[iw_partner_dashboard]` shortcode
+
+2. **Create Invite Codes**:
+   - Select quantity (1-10 codes)
+   - Select days valid (informational only - actual expiry is set in plugin settings)
+   - Click "Create codes"
+   - Copy the generated codes to share with students
+
+3. **Monitor Students**:
+   - View all active students in the global pool
+   - See username, email, and expiration date
+   - Revoke access for any student if needed (removes LearnDash enrollments immediately)
+
+4. **Track Invite Usage**:
+   - See all invite codes (used and available)
+   - View who used each code and when
+   - All partner admins see the same invites (shared pool)
+
+### For Students
+
+1. **Registration**:
+   - Receive an invite code from a partner admin
+   - Visit the registration page
+   - Enter invite code, username, email, and password
+   - Submit form to create account
+
+2. **What Happens Automatically**:
+   - Account is created with subscriber role
+   - User is enrolled in ALL LearnDash courses
+   - Invite code is marked as used (single-use)
+   - User is automatically logged in and redirected
+   - Partner admin receives email notification
+   - Expiration date is set based on plugin settings
+
+3. **Access Content**:
+   - User can now access all LearnDash courses
+   - Can view expiration date on the page with `[iw_my_expiry]` shortcode
+
+4. **Expiration**:
+   - Partner admin receives advance notice (configurable days before expiry)
+   - On expiration, user is either deleted or LearnDash enrollment is removed (configurable)
+   - Partner admin receives expiration notification
+
+## Available Shortcodes
+
+### `[iw_partner_dashboard]`
+Displays the partner dashboard with:
+- Form to create invite codes
+- Table of all invite codes (used/available)
+- List of active students with ability to revoke
+
+**Access**: Requires `manage_partner_invites` capability (administrator, partner_admin, or impact_manager role)
+
+### `[iw_register_with_code]`
+Displays registration form with fields:
+- Invite Code (single-use)
+- Username
+- Email
+- Password
+
+**Access**: Public (configure URL in settings to exempt from login enforcement)
+
+### `[iw_login]`
+Displays custom login form with:
+- Username or Email field
+- Password field
+- Remember me checkbox
+- Lost password link
+
+**Access**: Public
+
+### `[iw_my_expiry]`
+Displays membership expiration information:
+- Expiration date
+- Days remaining
+- Expired status if applicable
+
+**Access**: Logged-in users only
+
+## Settings Reference
+
+### Partnership area > Settings
+
+**Default invite length (days)**
+- How many days students get access after using an invite code
+- Range: 1-365 days
+- Default: 30 days
+
+**Max students per partner (0 = unlimited)**
+- Global limit for the shared partner pool
+- Set to 0 for unlimited
+- Default: 10
+- Note: This is for ALL partners combined (shared pool)
+
+**Action on user expiry**
+- **Delete user**: Completely removes the WordPress user account
+- **Remove LearnDash enrollments (keep WP user)**: Removes course access but keeps the account with "expired" role
+
+**Notify partners this many days before expiry**
+- Days before expiration to send advance notification email to partner admin
+- Set to 0 to disable advance notifications
+- Default: 7 days
+
+**Post-registration redirect URL (site)**
+- Full URL where users are redirected after registration
+- Leave blank to redirect to homepage
+- Applied to all registrations unless partner-specific URL is set
+
+**Post-registration redirect URL (partners)**
+- Full URL for users registered via partner invites
+- If empty, uses the site-wide post-registration redirect
+- Allows custom flow for partner-invited students
+
+**Login page URL (required for site-wide access control)**
+- Full URL of the page containing `[iw_login]` shortcode
+- Example: `https://example.com/login`
+- Required for site-wide login enforcement
+
+**Registration page URL (public)**
+- Full URL of the page containing `[iw_register_with_code]` shortcode
+- Example: `https://example.com/register`
+- This page is exempted from login enforcement so students can register
+- Must be publicly accessible
+
+## Node.js API Backend (Optional)
+
+The repository also includes an optional Node.js REST API backend for extended features. See below for API documentation.
 
 ## API Documentation
 

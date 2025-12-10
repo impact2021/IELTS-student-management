@@ -1,15 +1,23 @@
 <?php
 /**
- * Plugin Name: IELTS Membership System
- * Plugin URI: https://github.com/impact2021/IELTS-student-management
- * Description: A comprehensive membership management system for IELTS student management, replacing Amember
- * Version: 1.0.0
- * Author: IELTS Management Team
- * Author URI: https://github.com/impact2021
- * License: GPL v2 or later
- * License URI: https://www.gnu.org/licenses/gpl-2.0.html
- * Text Domain: ielts-membership
- * Domain Path: /ielts-membership-plugin/languages
+ * Plugin Name: Impact Websites Student Management
+ * Description: Partner-admin invite system for LearnDash. Shared partner dashboard (global pool) so multiple partner admins see the same codes and users. Single-use invite codes, auto-enrol in ALL LearnDash courses, site-wide login enforcement with public registration.
+ * Version: 0.7.1
+ * Author: Impact Websites
+ * License: GPLv2 or later
+ *
+ * Change in 0.7.1:
+ * - Partner dashboard is now GLOBAL: all partner admins see the same invites and managed users (shared company pool).
+ * - Revoke action now allows any partner admin (with capability) to revoke any managed student (as long as the student is managed by a partner).
+ *
+ * Install/Upgrade:
+ * - Replace the existing plugin file at:
+ *     wp-content/plugins/impact-websites-student-management/impact-websites-student-management.php
+ *   then (re)activate the plugin.
+ *
+ * Notes:
+ * - The registration page must be configured in Partnership area -> Settings -> Registration page URL and must be publicly accessible.
+ * - The Login page URL must be configured too.
  */
 
 // Exit if accessed directly
@@ -19,7 +27,7 @@ if (!defined('ABSPATH')) {
 
 // Prevent loading if the subdirectory plugin is already active
 // This avoids duplicate functionality when both are detected by WordPress
-if (defined('IW_PLUGIN_VERSION')) {
+if (class_exists('Impact_Websites_Student_Management')) {
     return;
 }
 
@@ -44,7 +52,7 @@ function iw_wrapper_missing_directory_notice() {
     }
     ?>
     <div class="notice notice-error">
-        <p><strong>IELTS Membership System:</strong> Plugin directory structure is incomplete. Please ensure the 'ielts-membership-plugin' directory exists within the plugin folder.</p>
+        <p><strong>Impact Websites Student Management:</strong> Plugin directory structure is incomplete. Please ensure the 'ielts-membership-plugin' directory exists within the plugin folder.</p>
     </div>
     <?php
 }
