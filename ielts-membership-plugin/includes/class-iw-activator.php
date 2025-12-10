@@ -67,11 +67,12 @@ class IW_Activator {
      * @param array $page_data Page configuration
      */
     private static function create_page_if_not_exists($page_data) {
-        // Check if page already exists
-        $page = get_page_by_path($page_data['slug']);
+        // Check if a published page already exists with this slug
+        $page = get_page_by_path($page_data['slug'], OBJECT, 'page');
         
-        if ($page) {
-            // Page exists, check if it has the shortcode
+        // Only proceed with the existing page if it's published
+        if ($page && $page->post_status === 'publish') {
+            // Page exists and is published, check if it has the shortcode
             $shortcode_tag = str_replace(array('[', ']'), '', $page_data['shortcode']);
             if (!has_shortcode($page->post_content, $shortcode_tag)) {
                 // Update page content to include shortcode
@@ -83,7 +84,7 @@ class IW_Activator {
             return;
         }
         
-        // Create the page
+        // No published page exists, create a new one
         $page_id = wp_insert_post(array(
             'post_title' => $page_data['title'],
             'post_name' => $page_data['slug'],
