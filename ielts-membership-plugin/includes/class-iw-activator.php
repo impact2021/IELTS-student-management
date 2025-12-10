@@ -68,7 +68,7 @@ class IW_Activator {
      */
     private static function create_page_if_not_exists($page_data) {
         // Check if a published page already exists with this slug
-        $page = get_page_by_path($page_data['slug'], OBJECT, 'page');
+        $page = get_page_by_path($page_data['slug'], OBJECT);
         
         // Only proceed with the existing page if it's published
         if ($page && $page->post_status === 'publish') {
