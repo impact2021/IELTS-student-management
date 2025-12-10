@@ -197,28 +197,32 @@ class Impact_Websites_Student_Management {
 	public function field_post_register_redirect() {
 		$options = get_option( self::OPTION_KEY, [] );
 		$val = $options['post_register_redirect'] ?? '';
-		echo '<input type="text" style="width:60%;" name="' . self::OPTION_KEY . '[post_register_redirect]" value="' . esc_attr( $val ) . '" />';
+		$placeholder = home_url( '/my-account' );
+		echo '<input type="text" style="width:60%;" name="' . self::OPTION_KEY . '[post_register_redirect]" id="iw_post_register_redirect" value="' . esc_attr( $val ) . '" placeholder="' . esc_attr( $placeholder ) . '" />';
 		echo '<p class="description">Full URL to redirect newly-registered users to after automatic login (site-wide). Leave blank to send users to the homepage.</p>';
 	}
 
 	public function field_post_register_redirect_partner() {
 		$options = get_option( self::OPTION_KEY, [] );
 		$val = $options['post_register_redirect_partner'] ?? '';
-		echo '<input type="text" style="width:60%;" name="' . self::OPTION_KEY . '[post_register_redirect_partner]" value="' . esc_attr( $val ) . '" />';
+		$placeholder = home_url( '/partner-dashboard/' );
+		echo '<input type="text" style="width:60%;" name="' . self::OPTION_KEY . '[post_register_redirect_partner]" id="iw_post_register_redirect_partner" value="' . esc_attr( $val ) . '" placeholder="' . esc_attr( $placeholder ) . '" />';
 		echo '<p class="description">Full URL to redirect users created via partner invites. If empty the site-wide post-registration redirect will be used.</p>';
 	}
 
 	public function field_login_page_url() {
 		$options = get_option( self::OPTION_KEY, [] );
 		$val = $options['login_page_url'] ?? '';
-		echo '<input type="text" style="width:60%;" name="' . self::OPTION_KEY . '[login_page_url]" value="' . esc_attr( $val ) . '" />';
+		$placeholder = home_url( '/login/' );
+		echo '<input type="text" style="width:60%;" name="' . self::OPTION_KEY . '[login_page_url]" id="iw_login_page_url" value="' . esc_attr( $val ) . '" placeholder="' . esc_attr( $placeholder ) . '" />';
 		echo '<p class="description">Full URL of the page that contains the [iw_login] shortcode. Example: https://example.com/login</p>';
 	}
 
 	public function field_registration_page_url() {
 		$options = get_option( self::OPTION_KEY, [] );
 		$val = $options['registration_page_url'] ?? '';
-		echo '<input type="text" style="width:60%;" name="' . self::OPTION_KEY . '[registration_page_url]" value="' . esc_attr( $val ) . '" />';
+		$placeholder = home_url( '/register/' );
+		echo '<input type="text" style="width:60%;" name="' . self::OPTION_KEY . '[registration_page_url]" id="iw_registration_page_url" value="' . esc_attr( $val ) . '" placeholder="' . esc_attr( $placeholder ) . '" />';
 		echo '<p class="description">Full URL of the page that contains the [iw_register_with_code] shortcode. This page must be publicly accessible so students can register.</p>';
 	}
 
@@ -237,6 +241,16 @@ class Impact_Websites_Student_Management {
 				?>
 			</form>
 		</div>
+		<script>
+		jQuery(document).ready(function($) {
+			// Auto-fill empty URL fields with placeholder values on focus
+			$('#iw_post_register_redirect, #iw_post_register_redirect_partner, #iw_login_page_url, #iw_registration_page_url').on('focus', function() {
+				if ($(this).val() === '') {
+					$(this).val($(this).attr('placeholder'));
+				}
+			});
+		});
+		</script>
 		<?php
 	}
 
