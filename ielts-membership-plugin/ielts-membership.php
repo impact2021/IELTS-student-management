@@ -28,6 +28,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 // Define plugin constants
 define( 'IW_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'IW_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
+define( 'IW_PLUGIN_VERSION', '0.7.1' );
 
 // Load required classes
 require_once IW_PLUGIN_DIR . 'includes/class-iw-api-client.php';
@@ -116,14 +117,28 @@ class Impact_Websites_Student_Management {
 	 * Enqueue scripts and styles
 	 */
 	public function enqueue_scripts() {
-		// Enqueue jQuery
+		// Enqueue jQuery as dependency
 		wp_enqueue_script( 'jquery' );
 		
-		// Enqueue custom styles
-		wp_enqueue_style( 'iw-membership-styles', IW_PLUGIN_URL . 'assets/css/membership-styles.css', array(), '0.7.1' );
+		// Enqueue custom JavaScript
+		wp_enqueue_script( 
+			'iw-membership-script', 
+			IW_PLUGIN_URL . 'assets/js/membership-script.js', 
+			array( 'jquery' ), 
+			IW_PLUGIN_VERSION, 
+			true 
+		);
 		
-		// Localize script for AJAX
-		wp_localize_script( 'jquery', 'iwMembership', array(
+		// Enqueue custom styles
+		wp_enqueue_style( 
+			'iw-membership-styles', 
+			IW_PLUGIN_URL . 'assets/css/membership-styles.css', 
+			array(), 
+			IW_PLUGIN_VERSION 
+		);
+		
+		// Localize script for AJAX (attached to our plugin script, not jQuery)
+		wp_localize_script( 'iw-membership-script', 'iwMembership', array(
 			'ajaxUrl' => admin_url( 'admin-ajax.php' ),
 			'nonce' => wp_create_nonce( 'iw_membership_nonce' ),
 			'plansUrl' => home_url( '/membership-plans/' )
