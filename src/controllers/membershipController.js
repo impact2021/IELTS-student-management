@@ -236,8 +236,10 @@ const membershipController = {
       // 3. Get the plan_id associated with the code
       // 4. Create a new membership with that plan
       
+      // TODO: Make this configurable or retrieve from extension code validation
       // For this implementation, we'll extend with a default plan (assuming plan ID 2 - Basic)
-      const planId = 2; // Basic plan
+      const DEFAULT_EXTENSION_PLAN_ID = 2; // Basic plan - should be configurable
+      const planId = DEFAULT_EXTENSION_PLAN_ID;
       
       // Create new membership
       const membership = await UserMembership.create({

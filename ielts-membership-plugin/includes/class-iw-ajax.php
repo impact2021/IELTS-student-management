@@ -192,8 +192,8 @@ class IW_AJAX {
         check_ajax_referer('iw_membership_nonce', 'nonce');
         
         $token = isset($_COOKIE['iw_token']) ? $_COOKIE['iw_token'] : '';
-        $current_password = isset($_POST['current_password']) ? sanitize_text_field($_POST['current_password']) : '';
-        $new_password = isset($_POST['new_password']) ? sanitize_text_field($_POST['new_password']) : '';
+        $current_password = isset($_POST['current_password']) ? wp_unslash($_POST['current_password']) : '';
+        $new_password = isset($_POST['new_password']) ? wp_unslash($_POST['new_password']) : '';
         
         if (empty($token)) {
             wp_send_json_error(array('message' => 'Not authenticated'));
@@ -224,7 +224,7 @@ class IW_AJAX {
         check_ajax_referer('iw_membership_nonce', 'nonce');
         
         $token = isset($_COOKIE['iw_token']) ? $_COOKIE['iw_token'] : '';
-        $code = sanitize_text_field($_POST['code']);
+        $code = isset($_POST['code']) ? sanitize_text_field($_POST['code']) : '';
         
         if (empty($token)) {
             wp_send_json_error(array('message' => 'Not authenticated'));

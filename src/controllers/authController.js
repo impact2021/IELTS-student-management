@@ -96,7 +96,7 @@ const authController = {
       // Verify current password - verifyPassword returns user object or null
       const isValid = await User.verifyPassword(user.email, currentPassword);
       
-      if (!isValid || isValid === null) {
+      if (!isValid) {
         return res.status(401).json({ error: 'Current password is incorrect' });
       }
 
