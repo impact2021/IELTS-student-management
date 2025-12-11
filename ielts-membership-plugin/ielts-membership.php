@@ -32,7 +32,6 @@ define( 'IW_PLUGIN_VERSION', '0.7.1' );
 
 // Load required classes
 require_once IW_PLUGIN_DIR . 'includes/class-iw-api-client.php';
-require_once IW_PLUGIN_DIR . 'includes/class-iw-shortcodes.php';
 require_once IW_PLUGIN_DIR . 'includes/class-iw-ajax.php';
 
 class Impact_Websites_Student_Management {
@@ -87,8 +86,10 @@ class Impact_Websites_Student_Management {
 		// Daily cron
 		add_action( self::CRON_HOOK, [ $this, 'daily_expire_check' ] );
 		
-		// Initialize and register shortcodes
-		$this->init_shortcodes();
+		// Register additional shortcodes from IW_Shortcodes class
+		// Note: We only register extend-membership here as the other shortcodes
+		// are already registered above
+		add_shortcode( 'extend-membership', [ $this, 'shortcode_extend_membership' ] );
 		
 		// Initialize and register AJAX handlers
 		$this->init_ajax();
@@ -98,11 +99,16 @@ class Impact_Websites_Student_Management {
 	}
 	
 	/**
-	 * Initialize shortcodes
+	 * Extend Membership Shortcode
 	 */
-	private function init_shortcodes() {
-		$shortcodes = new IW_Shortcodes();
-		$shortcodes->register();
+	public function shortcode_extend_membership( $atts = [] ) {
+		if ( ! is_user_logged_in() ) {
+			return '<p>Please <a href="' . wp_login_url( get_permalink() ) . '">log in</a> to extend your membership.</p>';
+		}
+		
+		ob_start();
+		include IW_PLUGIN_DIR . 'templates/extend-membership.php';
+		return ob_get_clean();
 	}
 	
 	/**
@@ -117,10 +123,7 @@ class Impact_Websites_Student_Management {
 	 * Enqueue scripts and styles
 	 */
 	public function enqueue_scripts() {
-		// Enqueue jQuery as dependency
-		wp_enqueue_script( 'jquery' );
-		
-		// Enqueue custom JavaScript
+		// Enqueue custom JavaScript (jQuery is automatically loaded as a dependency)
 		wp_enqueue_script( 
 			'iw-membership-script', 
 			IW_PLUGIN_URL . 'assets/js/membership-script.js', 
