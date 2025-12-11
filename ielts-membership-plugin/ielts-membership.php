@@ -346,24 +346,13 @@ class Impact_Websites_Student_Management {
 			'order'       => 'DESC',
 		] );
 
-		// active students across all partners (managed users)
+		// All students with subscriber role
 		$now = time();
 		$users = get_users( [
-			'meta_query' => [
-				[
-					'key' => self::META_USER_MANAGER,
-					'compare' => 'EXISTS',
-				],
-			],
+			'role' => 'subscriber',
 			'fields' => 'all_with_meta',
 		] );
-		$active_students = [];
-		foreach ( $users as $s ) {
-			$exp = intval( get_user_meta( $s->ID, self::META_USER_EXPIRY, true ) );
-			if ( ! $exp || $exp > $now ) {
-				$active_students[] = $s;
-			}
-		}
+		$active_students = $users; // All subscribers are included in the list
 
 		// limit: use global partner limit (site setting). This is for the shared pool.
 		$options = get_option( self::OPTION_KEY, [] );
@@ -387,9 +376,9 @@ class Impact_Websites_Student_Management {
 				<button type="submit" class="button button-primary">Create codes</button>
 			</form>
 
-			<h2>Your codes (shared)</h2>
+			<h2>Your codes</h2>
 			<table class="widefat">
-				<thead><tr><th>Code</th><th>Status</th><th>Used by</th><th>Used at</th></tr></thead>
+				<thead><tr><th>Code</th><th>Status</th><th>Used by</th><th>Activated on</th></tr></thead>
 				<tbody>
 				<?php
 				if ( empty( $invites ) ) {
@@ -402,9 +391,22 @@ class Impact_Websites_Student_Management {
 						$used_at = intval( get_post_meta( $inv->ID, self::META_INVITE_USED_AT, true ) );
 						if ( $used ) {
 							$u = get_userdata( intval( $used_by ) );
-							$used_label = '<span style="color:green;font-weight:bold;">Used</span>';
 							$used_by_text = $u ? esc_html( $u->user_login ) . ' (' . esc_html( $u->user_email ) . ')' : 'User ID: ' . intval( $used_by );
 							$used_at_text = $used_at ? esc_html( $this->format_date( $used_at ) ) : '';
+							
+							// Determine status based on user state
+							if ( $u ) {
+								$exp = intval( get_user_meta( $u->ID, self::META_USER_EXPIRY, true ) );
+								if ( in_array( 'expired', $u->roles ) ) {
+									$used_label = '<span style="color:red;font-weight:bold;">Revoked</span>';
+								} elseif ( $exp && $exp <= $now ) {
+									$used_label = '<span style="color:gray;font-weight:bold;">Expired</span>';
+								} else {
+									$used_label = '<span style="color:green;font-weight:bold;">Active</span>';
+								}
+							} else {
+								$used_label = '<span style="color:gray;font-weight:bold;">Expired</span>';
+							}
 						} else {
 							$used_label = '<span style="color:orange;">Available</span>';
 							$used_by_text = '-';
