@@ -625,7 +625,7 @@ class Impact_Websites_Student_Management {
 
 		// auto-login and redirect (use partner-specific redirect if configured)
 		wp_set_current_user( $user_id );
-		wp_set_auth_cookie( $user_id, false, is_ssl() );
+		wp_set_auth_cookie( $user_id, false );
 		do_action( 'wp_login', $user->user_login, $user );
 
 		$redirect = ! empty( $options['post_register_redirect_partner'] ) ? $options['post_register_redirect_partner'] : ( ! empty( $options['post_register_redirect'] ) ? $options['post_register_redirect'] : home_url( '/' ) );
