@@ -254,7 +254,7 @@ class IW_AJAX {
             }
             
             $email_exists = email_exists($value);
-            if ($email_exists && $email_exists != $user_id) {
+            if ($email_exists && $email_exists !== $user_id) {
                 wp_send_json_error(array('message' => 'Email already in use'));
             }
             
@@ -301,7 +301,7 @@ class IW_AJAX {
         
         // Check if email is already in use by another user
         $email_exists = email_exists($user_email);
-        if ($email_exists && $email_exists != $user_id) {
+        if ($email_exists && $email_exists !== $user_id) {
             wp_send_json_error(array('message' => 'Email already in use'));
         }
         

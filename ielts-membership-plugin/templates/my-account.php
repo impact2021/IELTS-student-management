@@ -18,6 +18,7 @@ $is_expired = ($expiry_ts && $expiry_ts <= $now);
 .iw-table td, .iw-table th { padding:12px; border:1px solid #e6e6e6; vertical-align:middle; }
 .iw-table td:nth-child(even) { background:#f7f7f7; }
 .iw-table td:first-child, .iw-table th:first-child { background:#f8f9fa; color:#333333; font-weight:600; width:35%; }
+.iw-name-cell { width:32.5%; }
 .iw-input { width:100%; max-width:520px; padding:10px; border:1px solid #ccc; border-radius:4px; box-sizing:border-box; height:40px; }
 .iw-submit { background:#0073aa; color:#fff; border:none; padding:10px 16px; border-radius:4px; cursor:pointer; }
 .iw-message { padding:12px; margin:10px 0; border-radius:4px; }
@@ -55,10 +56,10 @@ $is_expired = ($expiry_ts && $expiry_ts <= $now);
                 <?php endif; ?>
                 <tr>
                     <th>Name</th>
-                    <td style="width:32.5%;">
+                    <td class="iw-name-cell">
                         <input type="text" name="first_name" value="<?php echo esc_attr($current_user->first_name); ?>" class="iw-input" placeholder="First Name" required />
                     </td>
-                    <td style="width:32.5%;">
+                    <td class="iw-name-cell">
                         <input type="text" name="last_name" value="<?php echo esc_attr($current_user->last_name); ?>" class="iw-input" placeholder="Last Name" required />
                     </td>
                 </tr>
