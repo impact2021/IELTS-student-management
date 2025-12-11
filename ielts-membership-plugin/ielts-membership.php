@@ -958,8 +958,8 @@ class Impact_Websites_Student_Management {
 
 	/* Redirect partner admins to partner dashboard after login */
 	public function partner_admin_login_redirect( $redirect_to, $request, $user ) {
-		// Check if user is valid and has partner_admin role
-		if ( isset( $user->roles ) && is_array( $user->roles ) ) {
+		// Check if user is valid WP_User object and has partner_admin role
+		if ( ! is_wp_error( $user ) && isset( $user->roles ) && is_array( $user->roles ) ) {
 			if ( in_array( self::PARTNER_ROLE, $user->roles ) ) {
 				return home_url( '/partner-dashboard/' );
 			}
