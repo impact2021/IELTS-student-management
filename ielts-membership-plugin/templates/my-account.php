@@ -43,19 +43,27 @@ jQuery(document).ready(function($) {
     function displayAccountData(data) {
         var html = '<div class="iw-account-info">';
         html += '<h3>Personal Information</h3>';
-        html += '<p><strong>Name:</strong> ' + data.user.first_name + ' ' + data.user.last_name + '</p>';
-        html += '<p><strong>Email:</strong> ' + data.user.email + '</p>';
-        html += '<p><strong>Member Since:</strong> ' + new Date(data.user.created_at).toLocaleDateString() + '</p>';
+        html += '<table class="iw-account-table">';
+        html += '<tbody>';
+        html += '<tr><th>Name:</th><td>' + data.user.first_name + ' ' + data.user.last_name + '</td></tr>';
+        html += '<tr><th>Email:</th><td>' + data.user.email + '</td></tr>';
+        html += '<tr><th>Member Since:</th><td>' + new Date(data.user.created_at).toLocaleDateString() + '</td></tr>';
+        html += '</tbody>';
+        html += '</table>';
         html += '</div>';
         
         if (data.membership) {
             html += '<div class="iw-membership-info">';
             html += '<h3>Current Membership</h3>';
-            html += '<p><strong>Plan:</strong> ' + data.membership.plan_name + '</p>';
-            html += '<p><strong>Status:</strong> <span class="iw-status-' + data.membership.status + '">' + data.membership.status.toUpperCase() + '</span></p>';
-            html += '<p><strong>Start Date:</strong> ' + new Date(data.membership.start_date).toLocaleDateString() + '</p>';
-            html += '<p><strong>Expiry Date:</strong> ' + new Date(data.membership.end_date).toLocaleDateString() + '</p>';
-            html += '<p><strong>Payment Status:</strong> ' + data.membership.payment_status + '</p>';
+            html += '<table class="iw-account-table">';
+            html += '<tbody>';
+            html += '<tr><th>Plan:</th><td>' + data.membership.plan_name + '</td></tr>';
+            html += '<tr><th>Status:</th><td><span class="iw-status-' + data.membership.status + '">' + data.membership.status.toUpperCase() + '</span></td></tr>';
+            html += '<tr><th>Start Date:</th><td>' + new Date(data.membership.start_date).toLocaleDateString() + '</td></tr>';
+            html += '<tr><th>Expiry Date:</th><td>' + new Date(data.membership.end_date).toLocaleDateString() + '</td></tr>';
+            html += '<tr><th>Payment Status:</th><td>' + data.membership.payment_status + '</td></tr>';
+            html += '</tbody>';
+            html += '</table>';
             html += '</div>';
             
             // Check if membership is expiring soon
@@ -79,7 +87,75 @@ jQuery(document).ready(function($) {
             html += '</div>';
         }
         
+        // Add password change section
+        html += '<div class="iw-password-change">';
+        html += '<h3>Change Password</h3>';
+        html += '<form id="iw-change-password-form">';
+        html += '<div class="iw-form-group">';
+        html += '<label for="current_password">Current Password</label>';
+        html += '<input type="password" id="current_password" name="current_password" required />';
+        html += '</div>';
+        html += '<div class="iw-form-group">';
+        html += '<label for="new_password">New Password</label>';
+        html += '<input type="password" id="new_password" name="new_password" required />';
+        html += '</div>';
+        html += '<div class="iw-form-group">';
+        html += '<label for="confirm_password">Confirm New Password</label>';
+        html += '<input type="password" id="confirm_password" name="confirm_password" required />';
+        html += '</div>';
+        html += '<div id="password-change-message"></div>';
+        html += '<button type="submit" class="iw-btn iw-btn-primary">Change Password</button>';
+        html += '</form>';
+        html += '</div>';
+        
         $('#iw-account-content').html(html);
+        
+        // Bind password change form handler
+        $('#iw-change-password-form').on('submit', handlePasswordChange);
+    }
+    
+    function handlePasswordChange(e) {
+        e.preventDefault();
+        
+        var currentPassword = $('#current_password').val();
+        var newPassword = $('#new_password').val();
+        var confirmPassword = $('#confirm_password').val();
+        var messageDiv = $('#password-change-message');
+        
+        // Validate passwords
+        if (newPassword !== confirmPassword) {
+            messageDiv.html('<div class="iw-error">New passwords do not match</div>');
+            return;
+        }
+        
+        if (newPassword.length < 6) {
+            messageDiv.html('<div class="iw-error">New password must be at least 6 characters</div>');
+            return;
+        }
+        
+        messageDiv.html('<div class="iw-loading">Changing password...</div>');
+        
+        $.ajax({
+            url: iwMembership.ajaxUrl,
+            type: 'POST',
+            data: {
+                action: 'iw_change_password',
+                nonce: iwMembership.nonce,
+                current_password: currentPassword,
+                new_password: newPassword
+            },
+            success: function(response) {
+                if (response.success) {
+                    messageDiv.html('<div class="iw-success">Password changed successfully!</div>');
+                    $('#iw-change-password-form')[0].reset();
+                } else {
+                    messageDiv.html('<div class="iw-error">' + response.data.message + '</div>');
+                }
+            },
+            error: function() {
+                messageDiv.html('<div class="iw-error">An error occurred. Please try again.</div>');
+            }
+        });
     }
     
     // Logout handler

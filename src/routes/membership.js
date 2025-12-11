@@ -19,6 +19,7 @@ router.get('/my-memberships', membershipController.getUserMemberships);
 router.get('/my-membership', membershipController.getActiveMembership);
 router.post('/renew', membershipController.renewMembership);
 router.post('/cancel/:id', membershipController.cancelMembership);
+router.post('/extend', membershipController.extendMembership);
 
 // Payments
 router.get('/my-payments', membershipController.getUserPayments);

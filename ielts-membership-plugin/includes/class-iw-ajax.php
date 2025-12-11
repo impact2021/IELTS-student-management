@@ -23,6 +23,8 @@ class IW_AJAX {
         add_action('wp_ajax_iw_get_membership', array($this, 'handle_get_membership'));
         add_action('wp_ajax_iw_subscribe', array($this, 'handle_subscribe'));
         add_action('wp_ajax_iw_logout', array($this, 'handle_logout'));
+        add_action('wp_ajax_iw_change_password', array($this, 'handle_change_password'));
+        add_action('wp_ajax_iw_extend_membership', array($this, 'handle_extend_membership'));
     }
     
     /**
@@ -181,5 +183,67 @@ class IW_AJAX {
             'message' => 'Logged out successfully',
             'redirect' => home_url('/login/')
         ));
+    }
+    
+    /**
+     * Handle password change
+     */
+    public function handle_change_password() {
+        check_ajax_referer('iw_membership_nonce', 'nonce');
+        
+        $token = isset($_COOKIE['iw_token']) ? $_COOKIE['iw_token'] : '';
+        $current_password = $_POST['current_password'];
+        $new_password = $_POST['new_password'];
+        
+        if (empty($token)) {
+            wp_send_json_error(array('message' => 'Not authenticated'));
+        }
+        
+        if (empty($current_password) || empty($new_password)) {
+            wp_send_json_error(array('message' => 'Current and new password are required'));
+        }
+        
+        if (strlen($new_password) < 6) {
+            wp_send_json_error(array('message' => 'New password must be at least 6 characters'));
+        }
+        
+        $api = new IW_API_Client();
+        $result = $api->change_password($current_password, $new_password, $token);
+        
+        if ($result['success']) {
+            wp_send_json_success(array('message' => 'Password changed successfully'));
+        } else {
+            wp_send_json_error(array('message' => $result['error']));
+        }
+    }
+    
+    /**
+     * Handle extend membership with code
+     */
+    public function handle_extend_membership() {
+        check_ajax_referer('iw_membership_nonce', 'nonce');
+        
+        $token = isset($_COOKIE['iw_token']) ? $_COOKIE['iw_token'] : '';
+        $code = sanitize_text_field($_POST['code']);
+        
+        if (empty($token)) {
+            wp_send_json_error(array('message' => 'Not authenticated'));
+        }
+        
+        if (empty($code)) {
+            wp_send_json_error(array('message' => 'Extension code is required'));
+        }
+        
+        $api = new IW_API_Client();
+        $result = $api->extend_membership($code, $token);
+        
+        if ($result['success']) {
+            wp_send_json_success(array(
+                'message' => 'Membership extended successfully!',
+                'data' => $result['data']
+            ));
+        } else {
+            wp_send_json_error(array('message' => $result['error']));
+        }
     }
 }

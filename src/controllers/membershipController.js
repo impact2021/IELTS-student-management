@@ -215,6 +215,44 @@ const membershipController = {
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
+  },
+
+  async extendMembership(req, res) {
+    try {
+      const { code } = req.body;
+
+      if (!code) {
+        return res.status(400).json({ error: 'Extension code is required' });
+      }
+
+      // For now, we'll implement a simple code-based extension
+      // In a real implementation, you would validate the code against a database
+      // and determine which plan to extend with
+      
+      // Mock validation - accept any non-empty code for now
+      // In production, you would:
+      // 1. Validate the code exists in an extension_codes table
+      // 2. Check if the code is not already used
+      // 3. Get the plan_id associated with the code
+      // 4. Create a new membership with that plan
+      
+      // For this implementation, we'll extend with a default plan (assuming plan ID 2 - Basic)
+      const planId = 2; // Basic plan
+      
+      // Create new membership
+      const membership = await UserMembership.create({
+        userId: req.userId,
+        planId,
+        paymentStatus: 'completed'
+      });
+
+      res.json({
+        message: 'Membership extended successfully',
+        membership
+      });
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
   }
 };
 

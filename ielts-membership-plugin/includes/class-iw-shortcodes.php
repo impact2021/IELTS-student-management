@@ -18,6 +18,7 @@ class IW_Shortcodes {
         add_shortcode('iw_login', array($this, 'login_form'));
         add_shortcode('iw_my_expiry', array($this, 'my_account'));
         add_shortcode('iw_register_with_code', array($this, 'register_form'));
+        add_shortcode('extend-membership', array($this, 'extend_membership'));
     }
     
     /**
@@ -77,6 +78,19 @@ class IW_Shortcodes {
         
         ob_start();
         include IW_PLUGIN_DIR . 'templates/register-form.php';
+        return ob_get_clean();
+    }
+    
+    /**
+     * Extend Membership Shortcode
+     */
+    public function extend_membership($atts) {
+        if (!is_user_logged_in()) {
+            return '<p>Please <a href="' . wp_login_url(get_permalink()) . '">log in</a> to extend your membership.</p>';
+        }
+        
+        ob_start();
+        include IW_PLUGIN_DIR . 'templates/extend-membership.php';
         return ob_get_clean();
     }
 }
