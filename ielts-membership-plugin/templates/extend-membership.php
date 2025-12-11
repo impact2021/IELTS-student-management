@@ -25,7 +25,7 @@ if (!defined('ABSPATH')) exit;
             <div class="iw-success-message">
                 <h3>Membership Extended Successfully!</h3>
                 <p>Your membership has been extended. You can now access the site.</p>
-                <a href="<?php echo home_url('/'); ?>" class="iw-btn iw-btn-primary">Go to Home</a>
+                <a href="<?php echo esc_url(home_url('/')); ?>" class="iw-btn iw-btn-primary">Go to Home</a>
             </div>
         </div>
     </div>

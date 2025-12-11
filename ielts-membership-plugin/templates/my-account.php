@@ -45,8 +45,8 @@ jQuery(document).ready(function($) {
         html += '<h3>Personal Information</h3>';
         html += '<table class="iw-account-table">';
         html += '<tbody>';
-        html += '<tr><th>Name:</th><td>' + data.user.first_name + ' ' + data.user.last_name + '</td></tr>';
-        html += '<tr><th>Email:</th><td>' + data.user.email + '</td></tr>';
+        html += '<tr><th>Name:</th><td>' + $('<div>').text(data.user.first_name).html() + ' ' + $('<div>').text(data.user.last_name).html() + '</td></tr>';
+        html += '<tr><th>Email:</th><td>' + $('<div>').text(data.user.email).html() + '</td></tr>';
         html += '<tr><th>Member Since:</th><td>' + new Date(data.user.created_at).toLocaleDateString() + '</td></tr>';
         html += '</tbody>';
         html += '</table>';
@@ -57,11 +57,11 @@ jQuery(document).ready(function($) {
             html += '<h3>Current Membership</h3>';
             html += '<table class="iw-account-table">';
             html += '<tbody>';
-            html += '<tr><th>Plan:</th><td>' + data.membership.plan_name + '</td></tr>';
-            html += '<tr><th>Status:</th><td><span class="iw-status-' + data.membership.status + '">' + data.membership.status.toUpperCase() + '</span></td></tr>';
+            html += '<tr><th>Plan:</th><td>' + $('<div>').text(data.membership.plan_name).html() + '</td></tr>';
+            html += '<tr><th>Status:</th><td><span class="iw-status-' + $('<div>').text(data.membership.status).html() + '">' + $('<div>').text(data.membership.status).html().toUpperCase() + '</span></td></tr>';
             html += '<tr><th>Start Date:</th><td>' + new Date(data.membership.start_date).toLocaleDateString() + '</td></tr>';
             html += '<tr><th>Expiry Date:</th><td>' + new Date(data.membership.end_date).toLocaleDateString() + '</td></tr>';
-            html += '<tr><th>Payment Status:</th><td>' + data.membership.payment_status + '</td></tr>';
+            html += '<tr><th>Payment Status:</th><td>' + $('<div>').text(data.membership.payment_status).html() + '</td></tr>';
             html += '</tbody>';
             html += '</table>';
             html += '</div>';

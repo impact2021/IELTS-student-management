@@ -93,10 +93,10 @@ const authController = {
         return res.status(404).json({ error: 'User not found' });
       }
 
-      // Verify current password
+      // Verify current password - verifyPassword returns user object or null
       const isValid = await User.verifyPassword(user.email, currentPassword);
       
-      if (!isValid) {
+      if (!isValid || isValid === null) {
         return res.status(401).json({ error: 'Current password is incorrect' });
       }
 
