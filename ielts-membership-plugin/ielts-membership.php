@@ -58,6 +58,7 @@ class Impact_Websites_Student_Management {
 	const AJAX_CREATE = 'iw_create_invite';
 	const AJAX_REVOKE = 'iw_revoke_student';
 	const AJAX_DELETE_CODE = 'iw_delete_code';
+	const AJAX_UPDATE_EXPIRY = 'iw_update_expiry';
 	const NONCE_DASH = 'iw_dashboard_nonce';
 	const NONCE_REGISTER = 'iw_register_nonce';
 	const PARTNER_ROLE = 'partner_admin';
@@ -78,6 +79,7 @@ class Impact_Websites_Student_Management {
 		add_action( 'wp_ajax_' . self::AJAX_CREATE, [ $this, 'ajax_create_invite' ] );
 		add_action( 'wp_ajax_' . self::AJAX_REVOKE, [ $this, 'ajax_revoke_student' ] );
 		add_action( 'wp_ajax_' . self::AJAX_DELETE_CODE, [ $this, 'ajax_delete_code' ] );
+		add_action( 'wp_ajax_' . self::AJAX_UPDATE_EXPIRY, [ $this, 'ajax_update_expiry' ] );
 
 		// Shortcodes
 		add_shortcode( 'iw_partner_dashboard', [ $this, 'shortcode_partner_dashboard' ] );
@@ -111,6 +113,12 @@ class Impact_Websites_Student_Management {
 		
 		// Enqueue scripts and styles
 		add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_scripts' ] );
+		
+		// Add user profile fields for expiry date editing in admin
+		add_action( 'show_user_profile', [ $this, 'show_expiry_field' ] );
+		add_action( 'edit_user_profile', [ $this, 'show_expiry_field' ] );
+		add_action( 'personal_options_update', [ $this, 'save_expiry_field' ] );
+		add_action( 'edit_user_profile_update', [ $this, 'save_expiry_field' ] );
 	}
 	
 	/**
@@ -613,6 +621,47 @@ class Impact_Websites_Student_Management {
 		wp_send_json_success( 'deleted' );
 	}
 
+	/* AJAX: update student expiry date (global — any partner admin can update any managed student) */
+	public function ajax_update_expiry() {
+		if ( ! is_user_logged_in() || ! current_user_can( self::CAP_MANAGE ) ) {
+			wp_send_json_error( 'Unauthorized', 403 );
+		}
+		if ( empty( $_POST['iw_dash_nonce'] ) || ! wp_verify_nonce( wp_unslash( $_POST['iw_dash_nonce'] ), self::NONCE_DASH ) ) {
+			wp_send_json_error( 'Invalid request', 400 );
+		}
+		$student_id = isset( $_POST['student_id'] ) ? intval( $_POST['student_id'] ) : 0;
+		$expiry_date = isset( $_POST['expiry_date'] ) ? sanitize_text_field( wp_unslash( $_POST['expiry_date'] ) ) : '';
+		
+		if ( ! $student_id || ! $expiry_date ) {
+			wp_send_json_error( 'Missing required fields', 400 );
+		}
+
+		$user = get_userdata( $student_id );
+		if ( ! $user ) {
+			wp_send_json_error( 'Invalid user', 400 );
+		}
+
+		// Verify the student is managed by a partner (part of the global pool)
+		$mgr = intval( get_user_meta( $student_id, self::META_USER_MANAGER, true ) );
+		if ( ! $mgr ) {
+			wp_send_json_error( 'This user is not managed by a partner', 403 );
+		}
+
+		// Convert date to timestamp (end of day)
+		$timestamp = strtotime( $expiry_date . ' 23:59:59' );
+		if ( ! $timestamp ) {
+			wp_send_json_error( 'Invalid date format', 400 );
+		}
+
+		// Update the expiry
+		update_user_meta( $student_id, self::META_USER_EXPIRY, $timestamp );
+		
+		// Clear any expiry notice flag
+		delete_user_meta( $student_id, self::META_EXPIRY_NOTICE_SENT );
+
+		wp_send_json_success( 'Expiry updated' );
+	}
+
 	private function generate_code( $length = 8 ) {
 		$chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 		$max = strlen( $chars ) - 1;
@@ -667,7 +716,7 @@ class Impact_Websites_Student_Management {
 		$dash_nonce = wp_create_nonce( self::NONCE_DASH );
 		?>
 		<style>
-		.iw-form-table { width:100%; max-width:600px; border-collapse:collapse; margin-bottom:1.5em; }
+		.iw-form-table { width:100%; border-collapse:collapse; margin-bottom:1.5em; }
 		.iw-form-table td, .iw-form-table th { padding:12px; border:1px solid #ddd; }
 		.iw-form-table th { background:#f8f9fa; font-weight:600; width:50%; }
 		.iw-form-table input[type="number"], .iw-form-table select { width:100%; padding:8px; }
@@ -677,12 +726,17 @@ class Impact_Websites_Student_Management {
 		.iw-tabs button:hover { background:#f0f0f0; }
 		.iw-code-row { display:none; }
 		.iw-code-row.show { display:table-row; }
+		.iw-dashboard-section { border:1px solid #ddd; border-radius:8px; padding:20px; margin-bottom:25px; background:#fff; }
+		.iw-dashboard-section h2 { margin-top:0; }
+		.iw-expiry-input { width:120px; padding:4px 8px; font-size:13px; }
+		.iw-update-expiry { margin-left:8px; }
 		</style>
 		<div id="iw-partner-dashboard">
-			<h2>Create invite codes</h2>
-			<form id="iw-create-invite-form">
-				<input type="hidden" name="iw_dash_nonce" value="<?php echo esc_attr( $dash_nonce ); ?>" />
-				<table class="iw-form-table">
+			<div class="iw-dashboard-section">
+				<h2>Create invite codes</h2>
+				<form id="iw-create-invite-form">
+					<input type="hidden" name="iw_dash_nonce" value="<?php echo esc_attr( $dash_nonce ); ?>" />
+					<table class="iw-form-table">
 					<tr>
 						<th>How many codes do you want to create?</th>
 						<td><input type="number" name="quantity" value="1" min="1" max="10" /></td>
@@ -710,9 +764,11 @@ class Impact_Websites_Student_Management {
 					</tr>
 				</table>
 			</form>
+			</div>
 
-			<h2>Your codes</h2>
-			<div class="iw-tabs">
+			<div class="iw-dashboard-section">
+				<h2>Your codes</h2>
+				<div class="iw-tabs">
 				<button class="iw-tab active" data-tab="all">ALL</button>
 				<button class="iw-tab" data-tab="active">Active</button>
 				<button class="iw-tab" data-tab="available">Available</button>
@@ -784,11 +840,13 @@ class Impact_Websites_Student_Management {
 				?>
 				</tbody>
 			</table>
+			</div>
 
-			<h2>Active students (<?php echo intval( $active_count ); ?>)</h2>
-			<p>Slots left: <strong><?php echo is_numeric( $slots_left ) ? intval( $slots_left ) : esc_html( $slots_left ); ?></strong></p>
-			<table class="widefat">
-				<thead><tr><th>Username</th><th>Email</th><th>Expires</th><th>Action</th></tr></thead>
+			<div class="iw-dashboard-section">
+				<h2>Active students (<?php echo intval( $active_count ); ?>)</h2>
+				<p>Slots left: <strong><?php echo is_numeric( $slots_left ) ? intval( $slots_left ) : esc_html( $slots_left ); ?></strong></p>
+				<table class="widefat">
+					<thead><tr><th>Username</th><th>Email</th><th>Expires</th><th>Action</th></tr></thead>
 				<tbody>
 				<?php
 				if ( empty( $all_students ) ) {
@@ -796,18 +854,26 @@ class Impact_Websites_Student_Management {
 				} else {
 					foreach ( $all_students as $s ) {
 						$exp = intval( get_user_meta( $s->ID, self::META_USER_EXPIRY, true ) );
+						$exp_date_value = $exp ? date( 'Y-m-d', $exp ) : '';
 						$exp_text = $exp ? $this->format_date( $exp ) : 'No expiry';
-						echo '<tr id="iw-student-' . intval( $s->ID ) . '">';
-						echo '<td>' . esc_html( $s->user_login ) . '</td>';
+						$student_id = intval( $s->ID );
+						$username = esc_html( $s->user_login );
+						echo '<tr id="iw-student-' . $student_id . '">';
+						echo '<td>' . $username . '</td>';
 						echo '<td>' . esc_html( $s->user_email ) . '</td>';
-						echo '<td>' . esc_html( $exp_text ) . '</td>';
-						echo '<td><button class="button iw-revoke" data-student="' . intval( $s->ID ) . '">Revoke</button></td>';
+						echo '<td>';
+						echo '<span class="iw-expiry-display">' . esc_html( $exp_text ) . '</span> ';
+						echo '<input type="date" class="iw-expiry-input" id="iw-expiry-input-' . $student_id . '" data-student="' . $student_id . '" value="' . esc_attr( $exp_date_value ) . '" aria-label="Expiry date for ' . esc_attr( $username ) . '" />';
+						echo '<button class="button iw-update-expiry" data-student="' . $student_id . '" aria-label="Update expiry for ' . esc_attr( $username ) . '">Update</button>';
+						echo '</td>';
+						echo '<td><button class="button iw-revoke" data-student="' . $student_id . '">Revoke</button></td>';
 						echo '</tr>';
 					}
 				}
 				?>
 				</tbody>
 			</table>
+			</div>
 		</div>
 
 		<script>
@@ -907,6 +973,40 @@ class Impact_Websites_Student_Management {
 							location.reload();
 						}else{
 							alert('Error deleting code: ' + (d.data||d));
+						}
+					});
+				});
+			});
+
+			// Update expiry date
+			document.querySelectorAll('.iw-update-expiry').forEach(function(btn){
+				btn.addEventListener('click', function(){
+					const studentId = this.getAttribute('data-student');
+					const input = document.querySelector('.iw-expiry-input[data-student="' + studentId + '"]');
+					const newDate = input.value;
+					
+					if(!newDate) {
+						alert('Please select a date');
+						return;
+					}
+					
+					if(!confirm('Update expiry date for this student?')) return;
+					
+					const data = new FormData();
+					data.append('action','<?php echo esc_js( self::AJAX_UPDATE_EXPIRY ); ?>');
+					data.append('student_id', studentId);
+					data.append('expiry_date', newDate);
+					data.append('iw_dash_nonce', '<?php echo esc_js( $dash_nonce ); ?>');
+					fetch('<?php echo esc_url( admin_url( 'admin-ajax.php' ) ); ?>', {
+						method:'POST',
+						credentials:'same-origin',
+						body:data
+					}).then(r=>r.json()).then(d=>{
+						if(d.success){
+							alert('Expiry date updated successfully.');
+							location.reload();
+						}else{
+							alert('Error updating expiry: ' + (d.data||d));
 						}
 					});
 				});
@@ -1527,6 +1627,64 @@ class Impact_Websites_Student_Management {
 		$target = add_query_arg( 'redirect_to', rawurlencode( $current_url ), $login_url );
 		wp_safe_redirect( $target );
 		exit;
+	}
+
+	/**
+	 * Show expiry date field in user profile (admin backend)
+	 */
+	public function show_expiry_field( $user ) {
+		// Only show for users with manage_options capability or the manage_partner_invites capability
+		if ( ! current_user_can( 'manage_options' ) && ! current_user_can( self::CAP_MANAGE ) ) {
+			return;
+		}
+
+		$expiry_ts = intval( get_user_meta( $user->ID, self::META_USER_EXPIRY, true ) );
+		$expiry_date = $expiry_ts ? date( 'Y-m-d', $expiry_ts ) : '';
+		$expiry_display = $expiry_ts ? $this->format_date( $expiry_ts ) : 'No expiry set';
+		?>
+		<h3>Membership Expiry</h3>
+		<table class="form-table">
+			<tr>
+				<th><label for="iw_user_expiry">Expiry Date</label></th>
+				<td>
+					<input type="date" name="iw_user_expiry" id="iw_user_expiry" value="<?php echo esc_attr( $expiry_date ); ?>" class="regular-text" />
+					<p class="description">Current expiry: <?php echo esc_html( $expiry_display ); ?></p>
+				</td>
+			</tr>
+		</table>
+		<?php
+	}
+
+	/**
+	 * Save expiry date field from user profile (admin backend)
+	 */
+	public function save_expiry_field( $user_id ) {
+		// Check user capabilities
+		if ( ! current_user_can( 'edit_user', $user_id ) ) {
+			return false;
+		}
+		
+		// Only allow users with manage_options or manage_partner_invites to edit
+		if ( ! current_user_can( 'manage_options' ) && ! current_user_can( self::CAP_MANAGE ) ) {
+			return false;
+		}
+
+		if ( isset( $_POST['iw_user_expiry'] ) ) {
+			$expiry_date = sanitize_text_field( wp_unslash( $_POST['iw_user_expiry'] ) );
+			
+			if ( ! empty( $expiry_date ) ) {
+				// Convert to timestamp (end of day)
+				$timestamp = strtotime( $expiry_date . ' 23:59:59' );
+				if ( $timestamp ) {
+					update_user_meta( $user_id, self::META_USER_EXPIRY, $timestamp );
+					// Clear any expiry notice flag
+					delete_user_meta( $user_id, self::META_EXPIRY_NOTICE_SENT );
+				}
+			} else {
+				// If empty, remove the expiry
+				delete_user_meta( $user_id, self::META_USER_EXPIRY );
+			}
+		}
 	}
 }
 
