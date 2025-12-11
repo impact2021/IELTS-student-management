@@ -359,6 +359,7 @@ class IW_AJAX {
         }
         
         // Get days from invite or fallback to settings
+        // Note: Using string literal for meta key as constants are in main class
         $invite_days = intval(get_post_meta($invite->ID, '_iw_invite_days', true));
         if (!$invite_days) {
             $options = get_option('iw_student_management_options', array());

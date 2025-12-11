@@ -49,6 +49,7 @@ class Impact_Websites_Student_Management {
 	const META_INVITE_USED = '_iw_invite_used';
 	const META_INVITE_USED_BY = '_iw_invite_used_by';
 	const META_INVITE_USED_AT = '_iw_invite_used_at';
+	const META_INVITE_DAYS = '_iw_invite_days';
 	const META_USER_MANAGER = '_iw_user_manager';
 	const META_USER_EXPIRY = '_iw_user_expiry';
 	const META_EXPIRY_NOTICE_SENT = '_iw_expiry_notice_sent';
@@ -509,7 +510,7 @@ class Impact_Websites_Student_Management {
 			// store creator for audit but dashboard is global
 			update_post_meta( $post_id, self::META_MANAGER, $partner_id );
 			update_post_meta( $post_id, self::META_INVITE_CODE, $code );
-			update_post_meta( $post_id, '_iw_invite_days', $days );
+			update_post_meta( $post_id, self::META_INVITE_DAYS, $days );
 			$codes[] = $code;
 		}
 
@@ -522,12 +523,14 @@ class Impact_Websites_Student_Management {
 			$partner = get_userdata( $partner_id );
 			if ( $partner && $partner->user_email ) {
 				$subject = 'Your invite codes';
-				$message = "Hello " . $partner->display_name . ",\n\n";
+				$display_name = sanitize_text_field( $partner->display_name );
+				$message = "Hello " . $display_name . ",\n\n";
 				$message .= "You have created " . count( $codes ) . " invite code(s), each allowing " . $days . " days of access:\n\n";
 				$message .= implode( "\n", $codes ) . "\n\n";
 				$message .= "Share these codes with your students.\n\n";
 				$message .= "Regards,\nImpact Websites";
-				wp_mail( $partner->user_email, $subject, $message );
+				$result = wp_mail( $partner->user_email, $subject, $message );
+				// Note: Email send failure is non-critical, codes are still created successfully
 			}
 		}
 
@@ -724,7 +727,7 @@ class Impact_Websites_Student_Management {
 				} else {
 					foreach ( $invites as $inv ) {
 						$code = get_post_meta( $inv->ID, self::META_INVITE_CODE, true );
-						$days = intval( get_post_meta( $inv->ID, '_iw_invite_days', true ) );
+						$days = intval( get_post_meta( $inv->ID, self::META_INVITE_DAYS, true ) );
 						$days_text = $days > 0 ? $days : '-';
 						$used = get_post_meta( $inv->ID, self::META_INVITE_USED, true );
 						$used_by = get_post_meta( $inv->ID, self::META_INVITE_USED_BY, true );
@@ -1036,7 +1039,7 @@ class Impact_Websites_Student_Management {
 		update_user_meta( $user_id, 'last_name', $last_name );
 
 		// set expiry on user - use days from invite or fallback to default
-		$invite_days = intval( get_post_meta( $inv_id, '_iw_invite_days', true ) );
+		$invite_days = intval( get_post_meta( $inv_id, self::META_INVITE_DAYS, true ) );
 		if ( ! $invite_days && ! empty( $options['default_days'] ) ) {
 			$invite_days = intval( $options['default_days'] );
 		}
@@ -1386,7 +1389,7 @@ class Impact_Websites_Student_Management {
 			return; // No custom login page configured, use default behavior
 		}
 
-		$referrer = isset( $_SERVER['HTTP_REFERER'] ) ? $_SERVER['HTTP_REFERER'] : '';
+		$referrer = wp_get_referer();
 		
 		// Only redirect if coming from our custom login page
 		if ( ! empty( $referrer ) && strpos( $referrer, $login_url ) !== false ) {
@@ -1411,7 +1414,7 @@ class Impact_Websites_Student_Management {
 
 		// If there's an error, redirect to custom login page
 		if ( is_wp_error( $user ) && isset( $_POST['wp-submit'] ) ) {
-			$referrer = isset( $_SERVER['HTTP_REFERER'] ) ? $_SERVER['HTTP_REFERER'] : '';
+			$referrer = wp_get_referer();
 			
 			// Only redirect if coming from our custom login page
 			if ( ! empty( $referrer ) && strpos( $referrer, $login_url ) !== false ) {
