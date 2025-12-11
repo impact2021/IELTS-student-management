@@ -584,6 +584,11 @@ class Impact_Websites_Student_Management {
 		$first_name = sanitize_text_field( wp_unslash( $_POST['first_name'] ?? '' ) );
 		$last_name = sanitize_text_field( wp_unslash( $_POST['last_name'] ?? '' ) );
 		$code = sanitize_text_field( wp_unslash( $_POST['invite_code'] ) );
+		
+		// Validate required fields
+		if ( empty( $first_name ) || empty( $last_name ) ) {
+			wp_die( 'First name and last name are required.' );
+		}
 
 		// find invite post by code
 		$invite_post = $this->find_invite_by_code( $code );
@@ -613,13 +618,9 @@ class Impact_Websites_Student_Management {
 		$user = new WP_User( $user_id );
 		$user->set_role( 'subscriber' );
 		
-		// Save first name and last name
-		if ( ! empty( $first_name ) ) {
-			update_user_meta( $user_id, 'first_name', $first_name );
-		}
-		if ( ! empty( $last_name ) ) {
-			update_user_meta( $user_id, 'last_name', $last_name );
-		}
+		// Save first name and last name (already validated as required)
+		update_user_meta( $user_id, 'first_name', $first_name );
+		update_user_meta( $user_id, 'last_name', $last_name );
 
 		// set expiry on user (default behavior still available)
 		$invite_expiry_ts = 0;
