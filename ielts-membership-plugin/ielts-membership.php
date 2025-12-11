@@ -25,6 +25,15 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+// Define plugin constants
+define( 'IW_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
+define( 'IW_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
+
+// Load required classes
+require_once IW_PLUGIN_DIR . 'includes/class-iw-api-client.php';
+require_once IW_PLUGIN_DIR . 'includes/class-iw-shortcodes.php';
+require_once IW_PLUGIN_DIR . 'includes/class-iw-ajax.php';
+
 class Impact_Websites_Student_Management {
 	const CPT_INVITE = 'iw_invite';
 	const META_MANAGER = '_iw_invite_manager';
@@ -76,6 +85,49 @@ class Impact_Websites_Student_Management {
 
 		// Daily cron
 		add_action( self::CRON_HOOK, [ $this, 'daily_expire_check' ] );
+		
+		// Initialize and register shortcodes
+		$this->init_shortcodes();
+		
+		// Initialize and register AJAX handlers
+		$this->init_ajax();
+		
+		// Enqueue scripts and styles
+		add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_scripts' ] );
+	}
+	
+	/**
+	 * Initialize shortcodes
+	 */
+	private function init_shortcodes() {
+		$shortcodes = new IW_Shortcodes();
+		$shortcodes->register();
+	}
+	
+	/**
+	 * Initialize AJAX handlers
+	 */
+	private function init_ajax() {
+		$ajax = new IW_AJAX();
+		$ajax->register();
+	}
+	
+	/**
+	 * Enqueue scripts and styles
+	 */
+	public function enqueue_scripts() {
+		// Enqueue jQuery
+		wp_enqueue_script( 'jquery' );
+		
+		// Enqueue custom styles
+		wp_enqueue_style( 'iw-membership-styles', IW_PLUGIN_URL . 'assets/css/membership-styles.css', array(), '0.7.1' );
+		
+		// Localize script for AJAX
+		wp_localize_script( 'jquery', 'iwMembership', array(
+			'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+			'nonce' => wp_create_nonce( 'iw_membership_nonce' ),
+			'plansUrl' => home_url( '/membership-plans/' )
+		) );
 	}
 
 	/* Activation: schedule cron and ensure CPT/roles exist */
