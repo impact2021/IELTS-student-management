@@ -39,10 +39,17 @@ class IW_Shortcodes {
      */
     public function login_form($atts) {
         if (is_user_logged_in()) {
-            $redirect = get_option('iw_page_partner_dashboard') 
-                ? get_permalink(get_option('iw_page_partner_dashboard')) 
-                : home_url();
-            return '<p>You are already logged in. <a href="' . esc_url($redirect) . '">Go to Dashboard</a></p>';
+            // If user is already logged in, redirect them to the intended destination
+            $redirect = isset($_GET['redirect_to']) ? esc_url_raw(wp_unslash($_GET['redirect_to'])) : '';
+            
+            if (empty($redirect)) {
+                $redirect = get_option('iw_page_partner_dashboard') 
+                    ? get_permalink(get_option('iw_page_partner_dashboard')) 
+                    : home_url();
+            }
+            
+            wp_safe_redirect($redirect);
+            exit;
         }
         
         ob_start();

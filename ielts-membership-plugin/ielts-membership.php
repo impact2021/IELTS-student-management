@@ -2,9 +2,13 @@
 /**
  * Plugin Name: Impact Websites Student Management
  * Description: Partner-admin invite system for LearnDash. Shared partner dashboard (global pool) so multiple partner admins see the same codes and users. Single-use invite codes, auto-enrol in ALL LearnDash courses, site-wide login enforcement with public registration.
- * Version: 2.0
+ * Version: 2.1
  * Author: Impact Websites
  * License: GPLv2 or later
+ *
+ * Change in 2.1:
+ * - Fixed login redirect issue: When already logged in users visit login page with redirect_to parameter, they are now automatically redirected to the intended destination instead of showing a message.
+ * - Changed admin menu label from "Documentation" to "Docs 2025".
  *
  * Change in 2.0:
  * - Fixed [iw_my_expiry] shortcode to properly display account management form with ability to update email, name, and change password.
@@ -32,7 +36,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 // Define plugin constants
 define( 'IW_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'IW_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
-define( 'IW_PLUGIN_VERSION', '2.0' );
+define( 'IW_PLUGIN_VERSION', '2.1' );
 
 // Load required classes
 require_once IW_PLUGIN_DIR . 'includes/class-iw-api-client.php';
@@ -219,7 +223,7 @@ class Impact_Websites_Student_Management {
 			58
 		);
 		add_submenu_page( 'iw-partnership-area', 'Settings', 'Settings', 'manage_options', 'iw-partnership-area' );
-		add_submenu_page( 'iw-partnership-area', 'Documentation', 'Documentation', 'manage_options', 'iw-partnership-docs', [ $this, 'docs_page_html' ] );
+		add_submenu_page( 'iw-partnership-area', 'Docs 2025', 'Docs 2025', 'manage_options', 'iw-partnership-docs', [ $this, 'docs_page_html' ] );
 	}
 
 	public function register_settings() {
@@ -354,7 +358,7 @@ class Impact_Websites_Student_Management {
 		}
 		?>
 		<div class="wrap">
-			<h1>Partnership area - Documentation</h1>
+			<h1>Partnership area - Docs 2025</h1>
 			
 			<div style="max-width: 1200px;">
 				<h2>Available Shortcodes</h2>
@@ -1100,7 +1104,12 @@ class Impact_Websites_Student_Management {
 	/* Shortcode: login page (styled table) with lost password link */
 	public function shortcode_login() {
 		if ( is_user_logged_in() ) {
-			return '<p>You are already logged in.</p>';
+			// If user is already logged in, redirect them to the intended destination
+			$options = get_option( self::OPTION_KEY, [] );
+			$default_redirect = ! empty( $options['post_register_redirect'] ) ? $options['post_register_redirect'] : home_url( '/' );
+			$redirect_to = isset( $_GET['redirect_to'] ) ? esc_url_raw( wp_unslash( $_GET['redirect_to'] ) ) : $default_redirect;
+			wp_safe_redirect( $redirect_to );
+			exit;
 		}
 
 		$options = get_option( self::OPTION_KEY, [] );
