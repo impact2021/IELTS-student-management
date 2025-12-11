@@ -25,6 +25,15 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+// Define plugin constants
+define( 'IW_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
+define( 'IW_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
+define( 'IW_PLUGIN_VERSION', '0.7.1' );
+
+// Load required classes
+require_once IW_PLUGIN_DIR . 'includes/class-iw-api-client.php';
+require_once IW_PLUGIN_DIR . 'includes/class-iw-ajax.php';
+
 class Impact_Websites_Student_Management {
 	const CPT_INVITE = 'iw_invite';
 	const META_MANAGER = '_iw_invite_manager';
@@ -76,6 +85,72 @@ class Impact_Websites_Student_Management {
 
 		// Daily cron
 		add_action( self::CRON_HOOK, [ $this, 'daily_expire_check' ] );
+		
+		// Register extend-membership shortcode
+		// Note: Other shortcodes (iw_partner_dashboard, iw_register_with_code, etc.)
+		// are already registered above
+		add_shortcode( 'extend-membership', [ $this, 'shortcode_extend_membership' ] );
+		
+		// Initialize and register AJAX handlers
+		$this->init_ajax();
+		
+		// Enqueue scripts and styles
+		add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_scripts' ] );
+	}
+	
+	/**
+	 * Extend Membership Shortcode
+	 */
+	public function shortcode_extend_membership( $atts = [] ) {
+		if ( ! is_user_logged_in() ) {
+			return '<p>Please <a href="' . esc_url( wp_login_url( get_permalink() ) ) . '">log in</a> to extend your membership.</p>';
+		}
+		
+		$template_file = IW_PLUGIN_DIR . 'templates/extend-membership.php';
+		if ( ! file_exists( $template_file ) ) {
+			return '<p>Template file not found.</p>';
+		}
+		
+		ob_start();
+		include $template_file;
+		return ob_get_clean();
+	}
+	
+	/**
+	 * Initialize AJAX handlers
+	 */
+	private function init_ajax() {
+		$ajax = new IW_AJAX();
+		$ajax->register();
+	}
+	
+	/**
+	 * Enqueue scripts and styles
+	 */
+	public function enqueue_scripts() {
+		// Enqueue custom JavaScript (jQuery is automatically loaded as a dependency)
+		wp_enqueue_script( 
+			'iw-membership-script', 
+			IW_PLUGIN_URL . 'assets/js/membership-script.js', 
+			array( 'jquery' ), 
+			IW_PLUGIN_VERSION, 
+			true 
+		);
+		
+		// Enqueue custom styles
+		wp_enqueue_style( 
+			'iw-membership-styles', 
+			IW_PLUGIN_URL . 'assets/css/membership-styles.css', 
+			array(), 
+			IW_PLUGIN_VERSION 
+		);
+		
+		// Localize script for AJAX (attached to our plugin script, not jQuery)
+		wp_localize_script( 'iw-membership-script', 'iwMembership', array(
+			'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+			'nonce' => wp_create_nonce( 'iw_membership_nonce' ),
+			'plansUrl' => home_url( '/membership-plans/' )
+		) );
 	}
 
 	/* Activation: schedule cron and ensure CPT/roles exist */
