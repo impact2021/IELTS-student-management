@@ -449,7 +449,7 @@ class Impact_Websites_Student_Management {
 				<tbody>
 				<?php
 				if ( empty( $all_students ) ) {
-					echo '<tr><td colspan="4">No active students.</td></tr>';
+					echo '<tr><td colspan="4">No students found.</td></tr>';
 				} else {
 					foreach ( $all_students as $s ) {
 						$exp = intval( get_user_meta( $s->ID, self::META_USER_EXPIRY, true ) );
