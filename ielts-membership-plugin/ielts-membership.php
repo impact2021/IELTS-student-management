@@ -511,11 +511,11 @@ class Impact_Websites_Student_Management {
 		?>
 		<style>
 		.iw-table { width:100%; max-width:920px; border-collapse:collapse; margin-bottom:1em; font-family: Arial, sans-serif; }
-		.iw-table thead th { background:#2c3e50; color:#ffffff; padding:14px; text-align:left; font-size:16px; }
+		.iw-table thead th { background:#f8f9fa; color:#333333; padding:14px; text-align:left; font-size:16px; border:1px solid #e6e6e6; }
 		.iw-table td, .iw-table th { padding:12px; border:1px solid #e6e6e6; vertical-align:middle; }
 		.iw-table td:nth-child(even) { background:#f7f7f7; }
-		.iw-table td:first-child, .iw-table th:first-child { background:#2c3e50; color:#ffffff; }
-		.iw-input { width:100%; max-width:520px; padding:8px; border:1px solid #ccc; border-radius:4px; }
+		.iw-table td:first-child, .iw-table th:first-child { background:#f8f9fa; color:#333333; font-weight:600; }
+		.iw-input { width:100%; max-width:520px; padding:10px; border:1px solid #ccc; border-radius:4px; box-sizing:border-box; height:40px; }
 		.iw-submit { background:#0073aa; color:#fff; border:none; padding:10px 16px; border-radius:4px; cursor:pointer; }
 		.iw-note { color:#666; margin:6px 0 0; font-size:13px; }
 		</style>
@@ -529,6 +529,14 @@ class Impact_Websites_Student_Management {
 				<tr>
 					<th style="width:35%;">Invite Code (single-use)</th>
 					<td><input name="invite_code" value="<?php echo $prefill; ?>" required class="iw-input" /></td>
+				</tr>
+				<tr>
+					<th>First Name</th>
+					<td><input name="first_name" required class="iw-input" /></td>
+				</tr>
+				<tr>
+					<th>Last Name</th>
+					<td><input name="last_name" required class="iw-input" /></td>
 				</tr>
 				<tr>
 					<th>Username</th>
@@ -573,6 +581,8 @@ class Impact_Websites_Student_Management {
 		$user_login = sanitize_user( wp_unslash( $_POST['user_login'] ) );
 		$user_email = sanitize_email( wp_unslash( $_POST['user_email'] ) );
 		$user_pass = wp_unslash( $_POST['user_pass'] );
+		$first_name = sanitize_text_field( wp_unslash( $_POST['first_name'] ?? '' ) );
+		$last_name = sanitize_text_field( wp_unslash( $_POST['last_name'] ?? '' ) );
 		$code = sanitize_text_field( wp_unslash( $_POST['invite_code'] ) );
 
 		// find invite post by code
@@ -602,6 +612,14 @@ class Impact_Websites_Student_Management {
 
 		$user = new WP_User( $user_id );
 		$user->set_role( 'subscriber' );
+		
+		// Save first name and last name
+		if ( ! empty( $first_name ) ) {
+			update_user_meta( $user_id, 'first_name', $first_name );
+		}
+		if ( ! empty( $last_name ) ) {
+			update_user_meta( $user_id, 'last_name', $last_name );
+		}
 
 		// set expiry on user (default behavior still available)
 		$invite_expiry_ts = 0;
@@ -891,11 +909,11 @@ class Impact_Websites_Student_Management {
 		?>
 		<style>
 		.iw-login-table { width:100%; max-width:720px; border-collapse:collapse; margin:0 auto 1em; font-family: Arial, sans-serif; }
-		.iw-login-table thead th { background:#2c3e50; color:#ffffff; padding:14px; text-align:left; font-size:18px; }
+		.iw-login-table thead th { background:#f8f9fa; color:#333333; padding:14px; text-align:left; font-size:18px; border:1px solid #e6e6e6; }
 		.iw-login-table td, .iw-login-table th { padding:12px; border:1px solid #e6e6e6; vertical-align:middle; }
 		.iw-login-table td:nth-child(even) { background:#f7f7f7; }
-		.iw-login-table td:first-child, .iw-login-table th:first-child { background:#2c3e50; color:#ffffff; }
-		.iw-input { width:100%; max-width:480px; padding:8px; border:1px solid #ccc; border-radius:4px; }
+		.iw-login-table td:first-child, .iw-login-table th:first-child { background:#f8f9fa; color:#333333; font-weight:600; }
+		.iw-input { width:100%; max-width:480px; padding:10px; border:1px solid #ccc; border-radius:4px; box-sizing:border-box; height:40px; }
 		.iw-submit { background:#0073aa; color:#fff; border:none; padding:10px 16px; border-radius:4px; cursor:pointer; }
 		.iw-note { color:#666; margin-bottom:10px; font-size:14px; text-align:center; }
 		.iw-links { margin-top:8px; text-align:center; }
