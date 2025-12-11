@@ -31,63 +31,52 @@ $is_expired = ($expiry_ts && $expiry_ts <= $now);
     <h2>My Account</h2>
     
     <!-- Personal Information Table -->
-    <table class="iw-table" role="presentation">
-        <thead>
-            <tr><th colspan="2">Personal Information</th></tr>
-        </thead>
-        <tbody>
-            <tr>
-                <th>First Name</th>
-                <td>
-                    <form class="iw-update-form" data-field="first_name">
-                        <input type="text" name="first_name" value="<?php echo esc_attr($current_user->first_name); ?>" class="iw-input" required />
-                        <button type="submit" class="iw-submit">Update</button>
-                        <div class="iw-update-message"></div>
-                    </form>
-                </td>
-            </tr>
-            <tr>
-                <th>Last Name</th>
-                <td>
-                    <form class="iw-update-form" data-field="last_name">
-                        <input type="text" name="last_name" value="<?php echo esc_attr($current_user->last_name); ?>" class="iw-input" required />
-                        <button type="submit" class="iw-submit">Update</button>
-                        <div class="iw-update-message"></div>
-                    </form>
-                </td>
-            </tr>
-            <tr>
-                <th>Email</th>
-                <td>
-                    <form class="iw-update-form" data-field="user_email">
+    <form id="iw-profile-update-form">
+        <table class="iw-table" role="presentation">
+            <thead>
+                <tr><th colspan="3">Personal Information</th></tr>
+            </thead>
+            <tbody>
+                <?php if ($expiry_ts): ?>
+                <tr>
+                    <th>Membership Expiry</th>
+                    <td colspan="2">
+                        <?php 
+                        echo esc_html(date_i18n('d/m/Y', $expiry_ts));
+                        if (!$is_expired) {
+                            $days_left = ceil(($expiry_ts - $now) / DAY_IN_SECONDS);
+                            echo ' (' . intval($days_left) . ' day' . ($days_left != 1 ? 's' : '') . ' remaining)';
+                        } else {
+                            echo ' <span style="color:red;font-weight:bold;">(EXPIRED)</span>';
+                        }
+                        ?>
+                    </td>
+                </tr>
+                <?php endif; ?>
+                <tr>
+                    <th>Name</th>
+                    <td style="width:32.5%;">
+                        <input type="text" name="first_name" value="<?php echo esc_attr($current_user->first_name); ?>" class="iw-input" placeholder="First Name" required />
+                    </td>
+                    <td style="width:32.5%;">
+                        <input type="text" name="last_name" value="<?php echo esc_attr($current_user->last_name); ?>" class="iw-input" placeholder="Last Name" required />
+                    </td>
+                </tr>
+                <tr>
+                    <th>Email</th>
+                    <td colspan="2">
                         <input type="email" name="user_email" value="<?php echo esc_attr($current_user->user_email); ?>" class="iw-input" required />
-                        <button type="submit" class="iw-submit">Update</button>
-                        <div class="iw-update-message"></div>
-                    </form>
-                </td>
-            </tr>
-            <tr>
-                <th>Username</th>
-                <td><?php echo esc_html($current_user->user_login); ?> <em>(cannot be changed)</em></td>
-            </tr>
-            <?php if ($expiry_ts): ?>
-            <tr>
-                <th>Membership Expiry</th>
-                <td>
-                    <?php 
-                    echo esc_html(date_i18n('d/m/Y', $expiry_ts));
-                    if (!$is_expired) {
-                        $days_left = ceil(($expiry_ts - $now) / DAY_IN_SECONDS);
-                        echo ' (' . intval($days_left) . ' day' . ($days_left != 1 ? 's' : '') . ' remaining)';
-                    } else {
-                        echo ' <span style="color:red;font-weight:bold;">(EXPIRED)</span>';
-                    }
-                    ?>
-                </td>
-            </tr>
-            <?php endif; ?>
-        </tbody>
-    </table>
+                    </td>
+                </tr>
+                <tr>
+                    <th>Username</th>
+                    <td colspan="2"><?php echo esc_html($current_user->user_login); ?> <em>(cannot be changed)</em></td>
+                </tr>
+            </tbody>
+        </table>
+        <div id="profile-update-message"></div>
+        <button type="submit" class="iw-submit">Update</button>
+    </form>
     
     <!-- Change Password Table -->
     <table class="iw-table" role="presentation">
@@ -127,36 +116,39 @@ $is_expired = ($expiry_ts && $expiry_ts <= $now);
 
 <script>
 jQuery(document).ready(function($) {
-    // Handle profile field updates
-    $('.iw-update-form').on('submit', function(e) {
+    // Handle profile update form
+    $('#iw-profile-update-form').on('submit', function(e) {
         e.preventDefault();
         
         var form = $(this);
-        var field = form.data('field');
-        var value = form.find('input[name="' + field + '"]').val();
-        var messageDiv = form.find('.iw-update-message');
+        var messageDiv = $('#profile-update-message');
         
-        messageDiv.html('<span style="color:#666;">Updating...</span>');
+        var firstName = form.find('input[name="first_name"]').val();
+        var lastName = form.find('input[name="last_name"]').val();
+        var email = form.find('input[name="user_email"]').val();
+        
+        messageDiv.html('<div class="iw-message" style="background:#f0f0f0; color:#666; padding:12px; margin:10px 0; border-radius:4px;">Updating...</div>');
         
         $.ajax({
             url: iwMembership.ajaxUrl,
             type: 'POST',
             data: {
-                action: 'iw_update_profile',
+                action: 'iw_update_profile_bulk',
                 nonce: iwMembership.nonce,
-                field: field,
-                value: value
+                first_name: firstName,
+                last_name: lastName,
+                user_email: email
             },
             success: function(response) {
                 if (response.success) {
-                    messageDiv.html('<span style="color:green;">✓ Updated</span>');
+                    messageDiv.html('<div class="iw-message iw-success">Profile updated successfully!</div>');
                     setTimeout(function() { messageDiv.html(''); }, 3000);
                 } else {
-                    messageDiv.html('<span style="color:red;">Error: ' + (response.data.message || 'Update failed') + '</span>');
+                    messageDiv.html('<div class="iw-message iw-error">' + (response.data.message || 'Update failed') + '</div>');
                 }
             },
             error: function() {
-                messageDiv.html('<span style="color:red;">Error: Could not update</span>');
+                messageDiv.html('<div class="iw-message iw-error">Error: Could not update profile</div>');
             }
         });
     });
