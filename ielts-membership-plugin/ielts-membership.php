@@ -103,11 +103,16 @@ class Impact_Websites_Student_Management {
 	 */
 	public function shortcode_extend_membership( $atts = [] ) {
 		if ( ! is_user_logged_in() ) {
-			return '<p>Please <a href="' . wp_login_url( get_permalink() ) . '">log in</a> to extend your membership.</p>';
+			return '<p>Please <a href="' . esc_url( wp_login_url( get_permalink() ) ) . '">log in</a> to extend your membership.</p>';
+		}
+		
+		$template_file = IW_PLUGIN_DIR . 'templates/extend-membership.php';
+		if ( ! file_exists( $template_file ) ) {
+			return '<p>Template file not found.</p>';
 		}
 		
 		ob_start();
-		include IW_PLUGIN_DIR . 'templates/extend-membership.php';
+		include $template_file;
 		return ob_get_clean();
 	}
 	
