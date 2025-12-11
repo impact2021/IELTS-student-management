@@ -2,9 +2,13 @@
 /**
  * Plugin Name: Impact Websites Student Management
  * Description: Partner-admin invite system for LearnDash. Shared partner dashboard (global pool) so multiple partner admins see the same codes and users. Single-use invite codes, auto-enrol in ALL LearnDash courses, site-wide login enforcement with public registration.
- * Version: 0.7.1
+ * Version: 2.0
  * Author: Impact Websites
  * License: GPLv2 or later
+ *
+ * Change in 2.0:
+ * - Fixed [iw_my_expiry] shortcode to properly display account management form with ability to update email, name, and change password.
+ * - Changed admin menu label from "Docs" to "Documentation".
  *
  * Change in 0.7.1:
  * - Partner dashboard is now GLOBAL: all partner admins see the same invites and managed users (shared company pool).
@@ -28,7 +32,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 // Define plugin constants
 define( 'IW_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'IW_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
-define( 'IW_PLUGIN_VERSION', '0.7.1' );
+define( 'IW_PLUGIN_VERSION', '2.0' );
 
 // Load required classes
 require_once IW_PLUGIN_DIR . 'includes/class-iw-api-client.php';
@@ -215,7 +219,7 @@ class Impact_Websites_Student_Management {
 			58
 		);
 		add_submenu_page( 'iw-partnership-area', 'Settings', 'Settings', 'manage_options', 'iw-partnership-area' );
-		add_submenu_page( 'iw-partnership-area', 'Documentation', 'Docs', 'manage_options', 'iw-partnership-docs', [ $this, 'docs_page_html' ] );
+		add_submenu_page( 'iw-partnership-area', 'Documentation', 'Documentation', 'manage_options', 'iw-partnership-docs', [ $this, 'docs_page_html' ] );
 	}
 
 	public function register_settings() {
@@ -1077,35 +1081,20 @@ class Impact_Websites_Student_Management {
 		wp_mail( $to, $subject, $message );
 	}
 
-	/* Shortcode: show logged-in user's expiry */
+	/* Shortcode: show logged-in user's expiry and account management */
 	public function shortcode_my_expiry( $atts = [] ) {
 		if ( ! is_user_logged_in() ) {
-			return '<p>Please log in to see your membership expiry.</p>';
+			return '<p>Please <a href="' . esc_url( wp_login_url( get_permalink() ) ) . '">log in</a> to view your account.</p>';
 		}
-		$user_id = get_current_user_id();
-		$expiry_ts = intval( get_user_meta( $user_id, self::META_USER_EXPIRY, true ) );
-		if ( ! $expiry_ts ) {
-			return '<p>No membership expiry is set for your account.</p>';
+		
+		$template_file = IW_PLUGIN_DIR . 'templates/my-account.php';
+		if ( ! file_exists( $template_file ) ) {
+			return '<p>Template file not found.</p>';
 		}
-		$now = time();
-		$expiry_text = $this->format_date( $expiry_ts );
-		$seconds_left = $expiry_ts - $now;
-		$days_left = ( $seconds_left > 0 ) ? ceil( $seconds_left / DAY_IN_SECONDS ) : 0;
-
-		if ( $expiry_ts <= $now ) {
-			$html  = '<div class="iw-expiry-notice iw-expired">';
-			$html .= '<p><strong>Your membership expired on:</strong> ' . esc_html( $expiry_text ) . '.</p>';
-			$html .= '<p>If you think this is an error or need access extended, please contact your partner admin or the site administrator.</p>';
-			$html .= '</div>';
-			return $html;
-		}
-
-		$html  = '<div class="iw-expiry-notice">';
-		$html .= '<p><strong>Your membership expires on:</strong> ' . esc_html( $expiry_text ) . '.</p>';
-		$html .= '<p><strong>Days remaining:</strong> ' . intval( $days_left ) . '</p>';
-		$html .= '</div>';
-
-		return $html;
+		
+		ob_start();
+		include $template_file;
+		return ob_get_clean();
 	}
 
 	/* Shortcode: login page (styled table) with lost password link */
