@@ -358,12 +358,16 @@ class IW_AJAX {
             wp_send_json_error(array('message' => 'This extension code has already been used'));
         }
         
-        // Get default days from settings
-        $options = get_option('iw_student_management_options', array());
-        $default_days = isset($options['default_days']) ? intval($options['default_days']) : 30;
+        // Get days from invite or fallback to settings
+        // Note: Using string literal for meta key as constants are in main class
+        $invite_days = intval(get_post_meta($invite->ID, '_iw_invite_days', true));
+        if (!$invite_days) {
+            $options = get_option('iw_student_management_options', array());
+            $invite_days = isset($options['default_days']) ? intval($options['default_days']) : 30;
+        }
         
         // Calculate new expiry
-        $new_expiry = time() + ($default_days * DAY_IN_SECONDS);
+        $new_expiry = time() + ($invite_days * DAY_IN_SECONDS);
         
         // Update user
         $user = new WP_User($user_id);

@@ -49,6 +49,7 @@ class Impact_Websites_Student_Management {
 	const META_INVITE_USED = '_iw_invite_used';
 	const META_INVITE_USED_BY = '_iw_invite_used_by';
 	const META_INVITE_USED_AT = '_iw_invite_used_at';
+	const META_INVITE_DAYS = '_iw_invite_days';
 	const META_USER_MANAGER = '_iw_user_manager';
 	const META_USER_EXPIRY = '_iw_user_expiry';
 	const META_EXPIRY_NOTICE_SENT = '_iw_expiry_notice_sent';
@@ -56,6 +57,7 @@ class Impact_Websites_Student_Management {
 	const CRON_HOOK = 'iw_sm_daily_cron';
 	const AJAX_CREATE = 'iw_create_invite';
 	const AJAX_REVOKE = 'iw_revoke_student';
+	const AJAX_DELETE_CODE = 'iw_delete_code';
 	const NONCE_DASH = 'iw_dashboard_nonce';
 	const NONCE_REGISTER = 'iw_register_nonce';
 	const PARTNER_ROLE = 'partner_admin';
@@ -75,6 +77,7 @@ class Impact_Websites_Student_Management {
 		// AJAX handlers (frontend)
 		add_action( 'wp_ajax_' . self::AJAX_CREATE, [ $this, 'ajax_create_invite' ] );
 		add_action( 'wp_ajax_' . self::AJAX_REVOKE, [ $this, 'ajax_revoke_student' ] );
+		add_action( 'wp_ajax_' . self::AJAX_DELETE_CODE, [ $this, 'ajax_delete_code' ] );
 
 		// Shortcodes
 		add_shortcode( 'iw_partner_dashboard', [ $this, 'shortcode_partner_dashboard' ] );
@@ -90,6 +93,10 @@ class Impact_Websites_Student_Management {
 
 		// redirect partner_admin after login
 		add_filter( 'login_redirect', [ $this, 'partner_admin_login_redirect' ], 10, 3 );
+		
+		// Override login errors to keep them within plugin
+		add_filter( 'wp_login_failed', [ $this, 'handle_login_failed' ], 10, 2 );
+		add_filter( 'authenticate', [ $this, 'handle_login_errors' ], 30, 3 );
 
 		// Daily cron
 		add_action( self::CRON_HOOK, [ $this, 'daily_expire_check' ] );
@@ -486,6 +493,8 @@ class Impact_Websites_Student_Management {
 		$partner_id = get_current_user_id();
 		$quantity = isset( $_POST['quantity'] ) ? intval( $_POST['quantity'] ) : 1;
 		$quantity = max( 1, min( 10, $quantity ) ); // limit 1..10
+		$days = isset( $_POST['days'] ) ? intval( $_POST['days'] ) : 30;
+		$email_codes = isset( $_POST['email_codes'] ) && $_POST['email_codes'] === 'yes';
 
 		$codes = [];
 		for ( $i = 0; $i < $quantity; $i++ ) {
@@ -501,11 +510,28 @@ class Impact_Websites_Student_Management {
 			// store creator for audit but dashboard is global
 			update_post_meta( $post_id, self::META_MANAGER, $partner_id );
 			update_post_meta( $post_id, self::META_INVITE_CODE, $code );
+			update_post_meta( $post_id, self::META_INVITE_DAYS, $days );
 			$codes[] = $code;
 		}
 
 		if ( empty( $codes ) ) {
 			wp_send_json_error( 'Could not create invites' );
+		}
+
+		// Email codes to partner admin if requested
+		if ( $email_codes ) {
+			$partner = get_userdata( $partner_id );
+			if ( $partner && $partner->user_email ) {
+				$subject = 'Your invite codes';
+				$display_name = sanitize_text_field( $partner->display_name );
+				$message = "Hello " . $display_name . ",\n\n";
+				$message .= "You have created " . count( $codes ) . " invite code(s), each allowing " . $days . " days of access:\n\n";
+				$message .= implode( "\n", $codes ) . "\n\n";
+				$message .= "Share these codes with your students.\n\n";
+				$message .= "Regards,\nImpact Websites";
+				$result = wp_mail( $partner->user_email, $subject, $message );
+				// Note: Email send failure is non-critical, codes are still created successfully
+			}
 		}
 
 		wp_send_json_success( [ 'codes' => $codes ] );
@@ -534,6 +560,57 @@ class Impact_Websites_Student_Management {
 		wp_update_user( [ 'ID' => $student_id, 'role' => '' ] );
 
 		wp_send_json_success( 'revoked' );
+	}
+
+	/* AJAX: delete invite code (only available or expired codes can be deleted) */
+	public function ajax_delete_code() {
+		if ( ! is_user_logged_in() || ! current_user_can( self::CAP_MANAGE ) ) {
+			wp_send_json_error( 'Unauthorized', 403 );
+		}
+		if ( empty( $_POST['iw_dash_nonce'] ) || ! wp_verify_nonce( wp_unslash( $_POST['iw_dash_nonce'] ), self::NONCE_DASH ) ) {
+			wp_send_json_error( 'Invalid request', 400 );
+		}
+		$code_id = isset( $_POST['code_id'] ) ? intval( $_POST['code_id'] ) : 0;
+		if ( ! $code_id ) {
+			wp_send_json_error( 'Missing code ID', 400 );
+		}
+
+		$invite = get_post( $code_id );
+		if ( ! $invite || $invite->post_type !== self::CPT_INVITE ) {
+			wp_send_json_error( 'Invalid code', 400 );
+		}
+
+		$used = get_post_meta( $code_id, self::META_INVITE_USED, true );
+		
+		// Only allow deletion if code is available (not used)
+		if ( $used ) {
+			$used_by = get_post_meta( $code_id, self::META_INVITE_USED_BY, true );
+			$user = get_userdata( intval( $used_by ) );
+			
+			// Check if user is expired (no longer has subscriber role or expiry passed)
+			$now = time();
+			$is_expired = false;
+			if ( ! $user || ! in_array( 'subscriber', $user->roles ) ) {
+				$is_expired = true;
+			} else {
+				$exp = intval( get_user_meta( $user->ID, self::META_USER_EXPIRY, true ) );
+				if ( $exp && $exp <= $now ) {
+					$is_expired = true;
+				}
+			}
+			
+			if ( ! $is_expired ) {
+				wp_send_json_error( 'Cannot delete active codes. Only available or expired codes can be deleted.', 403 );
+			}
+		}
+
+		// Delete the invite post
+		$result = wp_delete_post( $code_id, true );
+		if ( ! $result ) {
+			wp_send_json_error( 'Failed to delete code' );
+		}
+
+		wp_send_json_success( 'deleted' );
 	}
 
 	private function generate_code( $length = 8 ) {
@@ -589,32 +666,76 @@ class Impact_Websites_Student_Management {
 		ob_start();
 		$dash_nonce = wp_create_nonce( self::NONCE_DASH );
 		?>
+		<style>
+		.iw-form-table { width:100%; max-width:600px; border-collapse:collapse; margin-bottom:1.5em; }
+		.iw-form-table td, .iw-form-table th { padding:12px; border:1px solid #ddd; }
+		.iw-form-table th { background:#f8f9fa; font-weight:600; width:50%; }
+		.iw-form-table input[type="number"], .iw-form-table select { width:100%; padding:8px; }
+		.iw-tabs { margin:20px 0 10px; border-bottom:1px solid #ccc; }
+		.iw-tabs button { background:none; border:none; padding:10px 20px; cursor:pointer; font-size:14px; border-bottom:2px solid transparent; margin-bottom:-1px; }
+		.iw-tabs button.active { border-bottom-color:#0073aa; color:#0073aa; font-weight:bold; }
+		.iw-tabs button:hover { background:#f0f0f0; }
+		.iw-code-row { display:none; }
+		.iw-code-row.show { display:table-row; }
+		</style>
 		<div id="iw-partner-dashboard">
-			<h2>Create up to 10 invite codes</h2>
+			<h2>Create invite codes</h2>
 			<form id="iw-create-invite-form">
 				<input type="hidden" name="iw_dash_nonce" value="<?php echo esc_attr( $dash_nonce ); ?>" />
-				<label>How many codes do you want to create? <input type="number" name="quantity" value="1" min="1" max="10" /></label>
-				<label>How many days' access should each code allow? <select name="days">
-					<option value="30">30</option>
-					<option value="60">60</option>
-					<option value="90">90</option>
-				</select></label>
-				<button type="submit" class="button button-primary">Create codes</button>
+				<table class="iw-form-table">
+					<tr>
+						<th>How many codes do you want to create?</th>
+						<td><input type="number" name="quantity" value="1" min="1" max="10" /></td>
+					</tr>
+					<tr>
+						<th>How many days' access should each code allow?</th>
+						<td>
+							<select name="days">
+								<option value="30">30</option>
+								<option value="60">60</option>
+								<option value="90">90</option>
+								<option value="180">180</option>
+								<option value="365">365</option>
+							</select>
+						</td>
+					</tr>
+					<tr>
+						<th>Email codes to me?</th>
+						<td><label><input type="checkbox" name="email_codes" value="yes" /> Yes, send codes to my email</label></td>
+					</tr>
+					<tr>
+						<td colspan="2" style="text-align:center;">
+							<button type="submit" class="button button-primary">Create codes</button>
+						</td>
+					</tr>
+				</table>
 			</form>
 
 			<h2>Your codes</h2>
-			<table class="widefat">
-				<thead><tr><th>Code</th><th>Status</th><th>Used by</th><th>Activated on</th></tr></thead>
+			<div class="iw-tabs">
+				<button class="iw-tab active" data-tab="all">ALL</button>
+				<button class="iw-tab" data-tab="active">Active</button>
+				<button class="iw-tab" data-tab="available">Available</button>
+				<button class="iw-tab" data-tab="expired">Expired</button>
+			</div>
+			<table class="widefat" id="iw-codes-table">
+				<thead><tr><th>Code</th><th>Days Access</th><th>Status</th><th>Used by</th><th>Activated on</th><th>Action</th></tr></thead>
 				<tbody>
 				<?php
 				if ( empty( $invites ) ) {
-					echo '<tr><td colspan="4">No codes yet.</td></tr>';
+					echo '<tr><td colspan="6">No codes yet.</td></tr>';
 				} else {
 					foreach ( $invites as $inv ) {
 						$code = get_post_meta( $inv->ID, self::META_INVITE_CODE, true );
+						$days = intval( get_post_meta( $inv->ID, self::META_INVITE_DAYS, true ) );
+						$days_text = $days > 0 ? $days : '-';
 						$used = get_post_meta( $inv->ID, self::META_INVITE_USED, true );
 						$used_by = get_post_meta( $inv->ID, self::META_INVITE_USED_BY, true );
 						$used_at = intval( get_post_meta( $inv->ID, self::META_INVITE_USED_AT, true ) );
+						
+						$status_class = '';
+						$can_delete = false;
+						
 						if ( $used ) {
 							$u = get_userdata( intval( $used_by ) );
 							$used_by_text = $u ? esc_html( $u->user_login ) . ' (' . esc_html( $u->user_email ) . ')' : 'User ID: ' . intval( $used_by );
@@ -623,26 +744,40 @@ class Impact_Websites_Student_Management {
 							// Determine status based on user state
 							if ( $u ) {
 								$exp = intval( get_user_meta( $u->ID, self::META_USER_EXPIRY, true ) );
-								if ( in_array( 'expired', $u->roles ) ) {
+								if ( in_array( 'expired', $u->roles ) || ! in_array( 'subscriber', $u->roles ) ) {
 									$used_label = '<span style="color:red;font-weight:bold;">Revoked</span>';
+									$status_class = 'expired';
+									$can_delete = true;
 								} elseif ( $exp && $exp <= $now ) {
 									$used_label = '<span style="color:gray;font-weight:bold;">Expired</span>';
+									$status_class = 'expired';
+									$can_delete = true;
 								} else {
 									$used_label = '<span style="color:green;font-weight:bold;">Active</span>';
+									$status_class = 'active';
 								}
 							} else {
 								$used_label = '<span style="color:gray;font-weight:bold;">Expired</span>';
+								$status_class = 'expired';
+								$can_delete = true;
 							}
 						} else {
 							$used_label = '<span style="color:orange;">Available</span>';
 							$used_by_text = '-';
 							$used_at_text = '-';
+							$status_class = 'available';
+							$can_delete = true;
 						}
-						echo '<tr>';
+						
+						$delete_btn = $can_delete ? '<button class="button iw-delete-code" data-code-id="' . intval( $inv->ID ) . '">Delete</button>' : '-';
+						
+						echo '<tr class="iw-code-row ' . esc_attr( $status_class ) . '" data-status="' . esc_attr( $status_class ) . '">';
 						echo '<td>' . esc_html( $code ) . '</td>';
+						echo '<td>' . esc_html( $days_text ) . '</td>';
 						echo '<td>' . $used_label . '</td>';
 						echo '<td>' . $used_by_text . '</td>';
 						echo '<td>' . $used_at_text . '</td>';
+						echo '<td>' . $delete_btn . '</td>';
 						echo '</tr>';
 					}
 				}
@@ -677,6 +812,39 @@ class Impact_Websites_Student_Management {
 
 		<script>
 		(function(){
+			// Tab functionality
+			const tabs = document.querySelectorAll('.iw-tab');
+			const rows = document.querySelectorAll('.iw-code-row');
+			
+			function showTab(tab) {
+				tabs.forEach(t => t.classList.remove('active'));
+				tab.classList.add('active');
+				
+				const filter = tab.getAttribute('data-tab');
+				rows.forEach(row => {
+					if (filter === 'all') {
+						row.classList.add('show');
+					} else {
+						const status = row.getAttribute('data-status');
+						if (status === filter) {
+							row.classList.add('show');
+						} else {
+							row.classList.remove('show');
+						}
+					}
+				});
+			}
+			
+			tabs.forEach(tab => {
+				tab.addEventListener('click', function() {
+					showTab(this);
+				});
+			});
+			
+			// Show all by default
+			showTab(document.querySelector('.iw-tab.active'));
+
+			// Create codes form
 			const form = document.getElementById('iw-create-invite-form');
 			form.addEventListener('submit', function(e){
 				e.preventDefault();
@@ -696,6 +864,7 @@ class Impact_Websites_Student_Management {
 				});
 			});
 
+			// Revoke student
 			document.querySelectorAll('.iw-revoke').forEach(function(btn){
 				btn.addEventListener('click', function(){
 					if(!confirm('Revoke access for this student? This will immediately remove their course access.')) return;
@@ -714,6 +883,30 @@ class Impact_Websites_Student_Management {
 							location.reload();
 						}else{
 							alert('Error revoking student: ' + (d.data||d));
+						}
+					});
+				});
+			});
+
+			// Delete code
+			document.querySelectorAll('.iw-delete-code').forEach(function(btn){
+				btn.addEventListener('click', function(){
+					if(!confirm('Delete this code? This action cannot be undone.')) return;
+					const codeId = this.getAttribute('data-code-id');
+					const data = new FormData();
+					data.append('action','<?php echo self::AJAX_DELETE_CODE; ?>');
+					data.append('code_id', codeId);
+					data.append('iw_dash_nonce', '<?php echo $dash_nonce; ?>');
+					fetch('<?php echo admin_url( 'admin-ajax.php' ); ?>', {
+						method:'POST',
+						credentials:'same-origin',
+						body:data
+					}).then(r=>r.json()).then(d=>{
+						if(d.success){
+							alert('Code deleted successfully.');
+							location.reload();
+						}else{
+							alert('Error deleting code: ' + (d.data||d));
 						}
 					});
 				});
@@ -845,11 +1038,13 @@ class Impact_Websites_Student_Management {
 		update_user_meta( $user_id, 'first_name', $first_name );
 		update_user_meta( $user_id, 'last_name', $last_name );
 
-		// set expiry on user (default behavior still available)
-		$invite_expiry_ts = 0;
-		if ( ! empty( $options['default_days'] ) ) {
-			$invite_expiry_ts = time() + ( intval( $options['default_days'] ) * DAY_IN_SECONDS );
+		// set expiry on user - use days from invite or fallback to default
+		$invite_days = intval( get_post_meta( $inv_id, self::META_INVITE_DAYS, true ) );
+		if ( ! $invite_days && ! empty( $options['default_days'] ) ) {
+			$invite_days = intval( $options['default_days'] );
 		}
+		$invite_expiry_ts = $invite_days > 0 ? time() + ( $invite_days * DAY_IN_SECONDS ) : 0;
+		
 		update_user_meta( $user_id, self::META_USER_MANAGER, $manager_id ?: 0 ); // store creator or 0
 		update_user_meta( $user_id, self::META_USER_EXPIRY, $invite_expiry_ts );
 		delete_user_meta( $user_id, self::META_EXPIRY_NOTICE_SENT );
@@ -1134,6 +1329,17 @@ class Impact_Websites_Student_Management {
 		.iw-links a { color:#0073aa; text-decoration:underline; }
 		</style>
 
+		<?php
+		// Display error messages if login failed
+		$login_error = '';
+		if ( isset( $_GET['login'] ) && $_GET['login'] === 'failed' ) {
+			$error_code = isset( $_GET['error'] ) ? sanitize_text_field( wp_unslash( $_GET['error'] ) ) : '';
+			$login_error = '<div style="background:#f8d7da;color:#721c24;border:1px solid #f5c6cb;padding:12px;margin:0 auto 15px;max-width:720px;border-radius:4px;text-align:center;font-weight:bold;">Login failed. Please check your username and password.</div>';
+		}
+		?>
+
+		<?php echo $login_error; ?>
+
 		<div class="iw-note">Please log in to access the site. If you do not have an account, ask your partner admin for an invite code.</div>
 
 		<form name="loginform" id="loginform" action="<?php echo esc_url( wp_login_url() ); ?>" method="post" style="max-width:760px;margin:0 auto;">
@@ -1172,6 +1378,59 @@ class Impact_Websites_Student_Management {
 		</form>
 		<?php
 		return ob_get_clean();
+	}
+
+	/* Handle failed login attempts - redirect to custom login page with error */
+	public function handle_login_failed( $username, $error ) {
+		$options = get_option( self::OPTION_KEY, [] );
+		$login_url = ! empty( $options['login_page_url'] ) ? $options['login_page_url'] : '';
+		
+		if ( empty( $login_url ) ) {
+			return; // No custom login page configured, use default behavior
+		}
+
+		$referrer = wp_get_referer();
+		
+		// Only redirect if coming from our custom login page
+		if ( ! empty( $referrer ) && strpos( $referrer, $login_url ) !== false ) {
+			$redirect_to = isset( $_REQUEST['redirect_to'] ) ? $_REQUEST['redirect_to'] : '';
+			$login_url = add_query_arg( 'login', 'failed', $login_url );
+			if ( ! empty( $redirect_to ) ) {
+				$login_url = add_query_arg( 'redirect_to', urlencode( $redirect_to ), $login_url );
+			}
+			wp_safe_redirect( $login_url );
+			exit;
+		}
+	}
+
+	/* Handle authentication errors - keep errors within plugin */
+	public function handle_login_errors( $user, $username, $password ) {
+		$options = get_option( self::OPTION_KEY, [] );
+		$login_url = ! empty( $options['login_page_url'] ) ? $options['login_page_url'] : '';
+		
+		if ( empty( $login_url ) ) {
+			return $user; // No custom login page configured, use default behavior
+		}
+
+		// If there's an error, redirect to custom login page
+		if ( is_wp_error( $user ) && isset( $_POST['wp-submit'] ) ) {
+			$referrer = wp_get_referer();
+			
+			// Only redirect if coming from our custom login page
+			if ( ! empty( $referrer ) && strpos( $referrer, $login_url ) !== false ) {
+				$redirect_to = isset( $_REQUEST['redirect_to'] ) ? $_REQUEST['redirect_to'] : '';
+				$error_code = $user->get_error_code();
+				$login_url = add_query_arg( 'login', 'failed', $login_url );
+				$login_url = add_query_arg( 'error', urlencode( $error_code ), $login_url );
+				if ( ! empty( $redirect_to ) ) {
+					$login_url = add_query_arg( 'redirect_to', urlencode( $redirect_to ), $login_url );
+				}
+				wp_safe_redirect( $login_url );
+				exit;
+			}
+		}
+
+		return $user;
 	}
 
 	/* Redirect users after login based on their role */
