@@ -150,6 +150,8 @@ class Impact_Websites_Student_Management {
 		add_settings_field( 'expiry_action', 'Action on user expiry', [ $this, 'field_expiry_action' ], 'iw-student-management', 'iw_sm_main' );
 		add_settings_field( 'notify_days_before', 'Notify partners this many days before expiry', [ $this, 'field_notify_days_before' ], 'iw-student-management', 'iw_sm_main' );
 		add_settings_field( 'post_register_redirect', 'Post-registration redirect URL (site)', [ $this, 'field_post_register_redirect' ], 'iw-student-management', 'iw_sm_main' );
+		add_settings_field( 'post_login_subscriber_redirect', 'Post-login redirect URL for subscribers', [ $this, 'field_post_login_subscriber_redirect' ], 'iw-student-management', 'iw_sm_main' );
+		add_settings_field( 'post_login_partner_redirect', 'Post-login redirect URL for partner admins', [ $this, 'field_post_login_partner_redirect' ], 'iw-student-management', 'iw_sm_main' );
 		add_settings_field( 'login_page_url', 'Login page URL (required for site-wide access control)', [ $this, 'field_login_page_url' ], 'iw-student-management', 'iw_sm_main' );
 		add_settings_field( 'registration_page_url', 'Registration page URL (public)', [ $this, 'field_registration_page_url' ], 'iw-student-management', 'iw_sm_main' );
 	}
@@ -161,6 +163,8 @@ class Impact_Websites_Student_Management {
 		$vals['expiry_action'] = in_array( $vals['expiry_action'] ?? '', [ 'delete_user', 'remove_enrollment' ], true ) ? $vals['expiry_action'] : 'delete_user';
 		$vals['notify_days_before'] = isset( $vals['notify_days_before'] ) ? intval( $vals['notify_days_before'] ) : 7;
 		$vals['post_register_redirect'] = ! empty( $vals['post_register_redirect'] ) ? esc_url_raw( trim( $vals['post_register_redirect'] ) ) : '';
+		$vals['post_login_subscriber_redirect'] = ! empty( $vals['post_login_subscriber_redirect'] ) ? esc_url_raw( trim( $vals['post_login_subscriber_redirect'] ) ) : '';
+		$vals['post_login_partner_redirect'] = ! empty( $vals['post_login_partner_redirect'] ) ? esc_url_raw( trim( $vals['post_login_partner_redirect'] ) ) : '';
 		$vals['login_page_url'] = ! empty( $vals['login_page_url'] ) ? esc_url_raw( trim( $vals['login_page_url'] ) ) : '';
 		$vals['registration_page_url'] = ! empty( $vals['registration_page_url'] ) ? esc_url_raw( trim( $vals['registration_page_url'] ) ) : '';
 		return $vals;
@@ -203,7 +207,21 @@ class Impact_Websites_Student_Management {
 		echo '<p class="description">Full URL to redirect newly-registered users to after automatic login (site-wide). Leave blank to send users to the homepage.</p>';
 	}
 
+	public function field_post_login_subscriber_redirect() {
+		$options = get_option( self::OPTION_KEY, [] );
+		$val = $options['post_login_subscriber_redirect'] ?? '';
+		$placeholder = home_url( '/my-account' );
+		echo '<input type="text" style="width:60%;" name="' . self::OPTION_KEY . '[post_login_subscriber_redirect]" id="iw_post_login_subscriber_redirect" value="' . esc_attr( $val ) . '" placeholder="' . esc_attr( $placeholder ) . '" />';
+		echo '<p class="description">Full URL to redirect subscribers to after login. Leave blank to use default WordPress behavior.</p>';
+	}
 
+	public function field_post_login_partner_redirect() {
+		$options = get_option( self::OPTION_KEY, [] );
+		$val = $options['post_login_partner_redirect'] ?? '';
+		$placeholder = home_url( '/partner-dashboard/' );
+		echo '<input type="text" style="width:60%;" name="' . self::OPTION_KEY . '[post_login_partner_redirect]" id="iw_post_login_partner_redirect" value="' . esc_attr( $val ) . '" placeholder="' . esc_attr( $placeholder ) . '" />';
+		echo '<p class="description">Full URL to redirect partner admins to after login. Leave blank to use /partner-dashboard/.</p>';
+	}
 
 	public function field_login_page_url() {
 		$options = get_option( self::OPTION_KEY, [] );
@@ -239,7 +257,7 @@ class Impact_Websites_Student_Management {
 		<script>
 		jQuery(document).ready(function($) {
 			// Auto-fill empty URL fields with placeholder values on focus
-			$('#iw_post_register_redirect, #iw_login_page_url, #iw_registration_page_url').on('focus', function() {
+			$('#iw_post_register_redirect, #iw_post_login_subscriber_redirect, #iw_post_login_partner_redirect, #iw_login_page_url, #iw_registration_page_url').on('focus', function() {
 				if ($(this).val() === '') {
 					$(this).val($(this).attr('placeholder'));
 				}
@@ -346,29 +364,18 @@ class Impact_Websites_Student_Management {
 			'order'       => 'DESC',
 		] );
 
-		// active students across all partners (managed users)
+		// All students with subscriber role
 		$now = time();
 		$users = get_users( [
-			'meta_query' => [
-				[
-					'key' => self::META_USER_MANAGER,
-					'compare' => 'EXISTS',
-				],
-			],
+			'role' => 'subscriber',
 			'fields' => 'all_with_meta',
 		] );
-		$active_students = [];
-		foreach ( $users as $s ) {
-			$exp = intval( get_user_meta( $s->ID, self::META_USER_EXPIRY, true ) );
-			if ( ! $exp || $exp > $now ) {
-				$active_students[] = $s;
-			}
-		}
+		$all_students = $users; // All subscribers are included in the list
 
 		// limit: use global partner limit (site setting). This is for the shared pool.
 		$options = get_option( self::OPTION_KEY, [] );
 		$global_limit = intval( $options['default_partner_limit'] ?? 0 );
-		$active_count = count( $active_students );
+		$active_count = count( $all_students );
 		$slots_left = ( $global_limit === 0 ) ? 'Unlimited' : max( 0, $global_limit - $active_count );
 
 		ob_start();
@@ -387,9 +394,9 @@ class Impact_Websites_Student_Management {
 				<button type="submit" class="button button-primary">Create codes</button>
 			</form>
 
-			<h2>Your codes (shared)</h2>
+			<h2>Your codes</h2>
 			<table class="widefat">
-				<thead><tr><th>Code</th><th>Status</th><th>Used by</th><th>Used at</th></tr></thead>
+				<thead><tr><th>Code</th><th>Status</th><th>Used by</th><th>Activated on</th></tr></thead>
 				<tbody>
 				<?php
 				if ( empty( $invites ) ) {
@@ -402,9 +409,22 @@ class Impact_Websites_Student_Management {
 						$used_at = intval( get_post_meta( $inv->ID, self::META_INVITE_USED_AT, true ) );
 						if ( $used ) {
 							$u = get_userdata( intval( $used_by ) );
-							$used_label = '<span style="color:green;font-weight:bold;">Used</span>';
 							$used_by_text = $u ? esc_html( $u->user_login ) . ' (' . esc_html( $u->user_email ) . ')' : 'User ID: ' . intval( $used_by );
 							$used_at_text = $used_at ? esc_html( $this->format_date( $used_at ) ) : '';
+							
+							// Determine status based on user state
+							if ( $u ) {
+								$exp = intval( get_user_meta( $u->ID, self::META_USER_EXPIRY, true ) );
+								if ( in_array( 'expired', $u->roles ) ) {
+									$used_label = '<span style="color:red;font-weight:bold;">Revoked</span>';
+								} elseif ( $exp && $exp <= $now ) {
+									$used_label = '<span style="color:gray;font-weight:bold;">Expired</span>';
+								} else {
+									$used_label = '<span style="color:green;font-weight:bold;">Active</span>';
+								}
+							} else {
+								$used_label = '<span style="color:gray;font-weight:bold;">Expired</span>';
+							}
 						} else {
 							$used_label = '<span style="color:orange;">Available</span>';
 							$used_by_text = '-';
@@ -428,10 +448,10 @@ class Impact_Websites_Student_Management {
 				<thead><tr><th>Username</th><th>Email</th><th>Expires</th><th>Action</th></tr></thead>
 				<tbody>
 				<?php
-				if ( empty( $active_students ) ) {
-					echo '<tr><td colspan="4">No active students.</td></tr>';
+				if ( empty( $all_students ) ) {
+					echo '<tr><td colspan="4">No students found.</td></tr>';
 				} else {
-					foreach ( $active_students as $s ) {
+					foreach ( $all_students as $s ) {
 						$exp = intval( get_user_meta( $s->ID, self::META_USER_EXPIRY, true ) );
 						$exp_text = $exp ? $this->format_date( $exp ) : 'No expiry';
 						echo '<tr id="iw-student-' . intval( $s->ID ) . '">';
@@ -956,12 +976,24 @@ class Impact_Websites_Student_Management {
 		return ob_get_clean();
 	}
 
-	/* Redirect partner admins to partner dashboard after login */
+	/* Redirect users after login based on their role */
 	public function partner_admin_login_redirect( $redirect_to, $request, $user ) {
-		// Check if user is valid WP_User object and has partner_admin role
+		// Check if user is valid WP_User object
 		if ( ! is_wp_error( $user ) && isset( $user->roles ) && is_array( $user->roles ) ) {
+			$options = get_option( self::OPTION_KEY, [] );
+			
+			// Check for partner admin role
 			if ( in_array( self::PARTNER_ROLE, $user->roles ) ) {
-				return home_url( '/partner-dashboard/' );
+				$partner_redirect = ! empty( $options['post_login_partner_redirect'] ) ? $options['post_login_partner_redirect'] : home_url( '/partner-dashboard/' );
+				return $partner_redirect;
+			}
+			
+			// Check for subscriber role
+			if ( in_array( 'subscriber', $user->roles ) ) {
+				$subscriber_redirect = ! empty( $options['post_login_subscriber_redirect'] ) ? $options['post_login_subscriber_redirect'] : '';
+				if ( ! empty( $subscriber_redirect ) ) {
+					return $subscriber_redirect;
+				}
 			}
 		}
 		return $redirect_to;
