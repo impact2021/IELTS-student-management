@@ -48,6 +48,8 @@ class IW_Shortcodes {
                     : home_url();
             }
             
+            // Validate redirect to prevent open redirect vulnerabilities
+            $redirect = wp_validate_redirect($redirect, home_url());
             wp_safe_redirect($redirect);
             exit;
         }
