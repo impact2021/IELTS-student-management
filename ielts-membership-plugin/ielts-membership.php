@@ -621,7 +621,7 @@ class Impact_Websites_Student_Management {
 		wp_send_json_success( 'deleted' );
 	}
 
-	/* AJAX: update student expiry date */
+	/* AJAX: update student expiry date (global — any partner admin can update any managed student) */
 	public function ajax_update_expiry() {
 		if ( ! is_user_logged_in() || ! current_user_can( self::CAP_MANAGE ) ) {
 			wp_send_json_error( 'Unauthorized', 403 );
@@ -639,6 +639,12 @@ class Impact_Websites_Student_Management {
 		$user = get_userdata( $student_id );
 		if ( ! $user ) {
 			wp_send_json_error( 'Invalid user', 400 );
+		}
+
+		// Verify the student is managed by a partner (part of the global pool)
+		$mgr = intval( get_user_meta( $student_id, self::META_USER_MANAGER, true ) );
+		if ( ! $mgr ) {
+			wp_send_json_error( 'This user is not managed by a partner', 403 );
 		}
 
 		// Convert date to timestamp (end of day)
@@ -850,15 +856,17 @@ class Impact_Websites_Student_Management {
 						$exp = intval( get_user_meta( $s->ID, self::META_USER_EXPIRY, true ) );
 						$exp_date_value = $exp ? date( 'Y-m-d', $exp ) : '';
 						$exp_text = $exp ? $this->format_date( $exp ) : 'No expiry';
-						echo '<tr id="iw-student-' . intval( $s->ID ) . '">';
-						echo '<td>' . esc_html( $s->user_login ) . '</td>';
+						$student_id = intval( $s->ID );
+						$username = esc_html( $s->user_login );
+						echo '<tr id="iw-student-' . $student_id . '">';
+						echo '<td>' . $username . '</td>';
 						echo '<td>' . esc_html( $s->user_email ) . '</td>';
 						echo '<td>';
 						echo '<span class="iw-expiry-display">' . esc_html( $exp_text ) . '</span> ';
-						echo '<input type="date" class="iw-expiry-input" data-student="' . intval( $s->ID ) . '" value="' . esc_attr( $exp_date_value ) . '" />';
-						echo '<button class="button iw-update-expiry" data-student="' . intval( $s->ID ) . '">Update</button>';
+						echo '<input type="date" class="iw-expiry-input" id="iw-expiry-input-' . $student_id . '" data-student="' . $student_id . '" value="' . esc_attr( $exp_date_value ) . '" aria-label="Expiry date for ' . esc_attr( $username ) . '" />';
+						echo '<button class="button iw-update-expiry" data-student="' . $student_id . '" aria-label="Update expiry for ' . esc_attr( $username ) . '">Update</button>';
 						echo '</td>';
-						echo '<td><button class="button iw-revoke" data-student="' . intval( $s->ID ) . '">Revoke</button></td>';
+						echo '<td><button class="button iw-revoke" data-student="' . $student_id . '">Revoke</button></td>';
 						echo '</tr>';
 					}
 				}
@@ -985,11 +993,11 @@ class Impact_Websites_Student_Management {
 					if(!confirm('Update expiry date for this student?')) return;
 					
 					const data = new FormData();
-					data.append('action','<?php echo self::AJAX_UPDATE_EXPIRY; ?>');
+					data.append('action','<?php echo esc_js( self::AJAX_UPDATE_EXPIRY ); ?>');
 					data.append('student_id', studentId);
 					data.append('expiry_date', newDate);
-					data.append('iw_dash_nonce', '<?php echo $dash_nonce; ?>');
-					fetch('<?php echo admin_url( 'admin-ajax.php' ); ?>', {
+					data.append('iw_dash_nonce', '<?php echo esc_js( $dash_nonce ); ?>');
+					fetch('<?php echo esc_url( admin_url( 'admin-ajax.php' ) ); ?>', {
 						method:'POST',
 						credentials:'same-origin',
 						body:data
