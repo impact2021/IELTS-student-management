@@ -26,6 +26,7 @@ class IW_AJAX {
         add_action('wp_ajax_iw_change_password', array($this, 'handle_change_password'));
         add_action('wp_ajax_iw_extend_membership', array($this, 'handle_extend_membership'));
         add_action('wp_ajax_iw_update_profile', array($this, 'handle_update_profile'));
+        add_action('wp_ajax_iw_update_profile_bulk', array($this, 'handle_update_profile_bulk'));
     }
     
     /**
@@ -253,7 +254,7 @@ class IW_AJAX {
             }
             
             $email_exists = email_exists($value);
-            if ($email_exists && $email_exists != $user_id) {
+            if ($email_exists && $email_exists !== $user_id) {
                 wp_send_json_error(array('message' => 'Email already in use'));
             }
             
@@ -270,6 +271,53 @@ class IW_AJAX {
         if (is_wp_error($result)) {
             wp_send_json_error(array('message' => $result->get_error_message()));
         }
+        
+        wp_send_json_success(array('message' => 'Profile updated successfully'));
+    }
+    
+    /**
+     * Handle bulk profile update
+     */
+    public function handle_update_profile_bulk() {
+        check_ajax_referer('iw_membership_nonce', 'nonce');
+        
+        if (!is_user_logged_in()) {
+            wp_send_json_error(array('message' => 'Not authenticated'));
+        }
+        
+        $user_id = get_current_user_id();
+        $first_name = isset($_POST['first_name']) ? sanitize_text_field($_POST['first_name']) : '';
+        $last_name = isset($_POST['last_name']) ? sanitize_text_field($_POST['last_name']) : '';
+        $user_email = isset($_POST['user_email']) ? sanitize_email($_POST['user_email']) : '';
+        
+        if (empty($first_name) || empty($last_name) || empty($user_email)) {
+            wp_send_json_error(array('message' => 'All fields are required'));
+        }
+        
+        // Validate email
+        if (!is_email($user_email)) {
+            wp_send_json_error(array('message' => 'Invalid email address'));
+        }
+        
+        // Check if email is already in use by another user
+        $email_exists = email_exists($user_email);
+        if ($email_exists && $email_exists !== $user_id) {
+            wp_send_json_error(array('message' => 'Email already in use'));
+        }
+        
+        // Update user email
+        $result = wp_update_user(array(
+            'ID' => $user_id,
+            'user_email' => $user_email
+        ));
+        
+        if (is_wp_error($result)) {
+            wp_send_json_error(array('message' => $result->get_error_message()));
+        }
+        
+        // Update user meta
+        update_user_meta($user_id, 'first_name', $first_name);
+        update_user_meta($user_id, 'last_name', $last_name);
         
         wp_send_json_success(array('message' => 'Profile updated successfully'));
     }
