@@ -71,6 +71,9 @@ class Impact_Websites_Student_Management {
 		// enforce login page (with registration-page exemption)
 		add_action( 'template_redirect', [ $this, 'enforce_login_required' ], 1 );
 
+		// redirect partner_admin after login
+		add_filter( 'login_redirect', [ $this, 'partner_admin_login_redirect' ], 10, 3 );
+
 		// Daily cron
 		add_action( self::CRON_HOOK, [ $this, 'daily_expire_check' ] );
 	}
@@ -147,7 +150,6 @@ class Impact_Websites_Student_Management {
 		add_settings_field( 'expiry_action', 'Action on user expiry', [ $this, 'field_expiry_action' ], 'iw-student-management', 'iw_sm_main' );
 		add_settings_field( 'notify_days_before', 'Notify partners this many days before expiry', [ $this, 'field_notify_days_before' ], 'iw-student-management', 'iw_sm_main' );
 		add_settings_field( 'post_register_redirect', 'Post-registration redirect URL (site)', [ $this, 'field_post_register_redirect' ], 'iw-student-management', 'iw_sm_main' );
-		add_settings_field( 'post_register_redirect_partner', 'Post-registration redirect URL (partners)', [ $this, 'field_post_register_redirect_partner' ], 'iw-student-management', 'iw_sm_main' );
 		add_settings_field( 'login_page_url', 'Login page URL (required for site-wide access control)', [ $this, 'field_login_page_url' ], 'iw-student-management', 'iw_sm_main' );
 		add_settings_field( 'registration_page_url', 'Registration page URL (public)', [ $this, 'field_registration_page_url' ], 'iw-student-management', 'iw_sm_main' );
 	}
@@ -159,7 +161,6 @@ class Impact_Websites_Student_Management {
 		$vals['expiry_action'] = in_array( $vals['expiry_action'] ?? '', [ 'delete_user', 'remove_enrollment' ], true ) ? $vals['expiry_action'] : 'delete_user';
 		$vals['notify_days_before'] = isset( $vals['notify_days_before'] ) ? intval( $vals['notify_days_before'] ) : 7;
 		$vals['post_register_redirect'] = ! empty( $vals['post_register_redirect'] ) ? esc_url_raw( trim( $vals['post_register_redirect'] ) ) : '';
-		$vals['post_register_redirect_partner'] = ! empty( $vals['post_register_redirect_partner'] ) ? esc_url_raw( trim( $vals['post_register_redirect_partner'] ) ) : '';
 		$vals['login_page_url'] = ! empty( $vals['login_page_url'] ) ? esc_url_raw( trim( $vals['login_page_url'] ) ) : '';
 		$vals['registration_page_url'] = ! empty( $vals['registration_page_url'] ) ? esc_url_raw( trim( $vals['registration_page_url'] ) ) : '';
 		return $vals;
@@ -202,13 +203,7 @@ class Impact_Websites_Student_Management {
 		echo '<p class="description">Full URL to redirect newly-registered users to after automatic login (site-wide). Leave blank to send users to the homepage.</p>';
 	}
 
-	public function field_post_register_redirect_partner() {
-		$options = get_option( self::OPTION_KEY, [] );
-		$val = $options['post_register_redirect_partner'] ?? '';
-		$placeholder = home_url( '/partner-dashboard/' );
-		echo '<input type="text" style="width:60%;" name="' . self::OPTION_KEY . '[post_register_redirect_partner]" id="iw_post_register_redirect_partner" value="' . esc_attr( $val ) . '" placeholder="' . esc_attr( $placeholder ) . '" />';
-		echo '<p class="description">Full URL to redirect users created via partner invites. If empty the site-wide post-registration redirect will be used.</p>';
-	}
+
 
 	public function field_login_page_url() {
 		$options = get_option( self::OPTION_KEY, [] );
@@ -244,7 +239,7 @@ class Impact_Websites_Student_Management {
 		<script>
 		jQuery(document).ready(function($) {
 			// Auto-fill empty URL fields with placeholder values on focus
-			$('#iw_post_register_redirect, #iw_post_register_redirect_partner, #iw_login_page_url, #iw_registration_page_url').on('focus', function() {
+			$('#iw_post_register_redirect, #iw_login_page_url, #iw_registration_page_url').on('focus', function() {
 				if ($(this).val() === '') {
 					$(this).val($(this).attr('placeholder'));
 				}
@@ -380,11 +375,11 @@ class Impact_Websites_Student_Management {
 		$dash_nonce = wp_create_nonce( self::NONCE_DASH );
 		?>
 		<div id="iw-partner-dashboard">
-			<h2>Create up to 10 invite codes (shared pool)</h2>
+			<h2>Create up to 10 invite codes</h2>
 			<form id="iw-create-invite-form">
 				<input type="hidden" name="iw_dash_nonce" value="<?php echo esc_attr( $dash_nonce ); ?>" />
-				<label>Quantity (1–10): <input type="number" name="quantity" value="1" min="1" max="10" /></label>
-				<label>Days valid (informational only): <select name="days">
+				<label>How many codes do you want to create? <input type="number" name="quantity" value="1" min="1" max="10" /></label>
+				<label>How many days' access should each code allow? <select name="days">
 					<option value="30">30</option>
 					<option value="60">60</option>
 					<option value="90">90</option>
@@ -428,7 +423,7 @@ class Impact_Websites_Student_Management {
 			</table>
 
 			<h2>Active students (<?php echo intval( $active_count ); ?>)</h2>
-			<p>Slots left (shared pool): <strong><?php echo is_numeric( $slots_left ) ? intval( $slots_left ) : esc_html( $slots_left ); ?></strong></p>
+			<p>Slots left: <strong><?php echo is_numeric( $slots_left ) ? intval( $slots_left ) : esc_html( $slots_left ); ?></strong></p>
 			<table class="widefat">
 				<thead><tr><th>Username</th><th>Email</th><th>Expires</th><th>Action</th></tr></thead>
 				<tbody>
@@ -642,12 +637,12 @@ class Impact_Websites_Student_Management {
 		// notify partner (creator) if present
 		$this->notify_partner_invite_used( $manager_id, $user_id, $code, $invite_expiry_ts );
 
-		// auto-login and redirect (use partner-specific redirect if configured)
+		// auto-login and redirect
 		wp_set_current_user( $user_id );
 		wp_set_auth_cookie( $user_id, false );
 		do_action( 'wp_login', $user->user_login, $user );
 
-		$redirect = ! empty( $options['post_register_redirect_partner'] ) ? $options['post_register_redirect_partner'] : ( ! empty( $options['post_register_redirect'] ) ? $options['post_register_redirect'] : home_url( '/' ) );
+		$redirect = ! empty( $options['post_register_redirect'] ) ? $options['post_register_redirect'] : home_url( '/' );
 		$redirect_url = wp_validate_redirect( $redirect, home_url( '/' ) );
 		wp_safe_redirect( $redirect_url );
 		exit;
@@ -959,6 +954,17 @@ class Impact_Websites_Student_Management {
 		</form>
 		<?php
 		return ob_get_clean();
+	}
+
+	/* Redirect partner admins to partner dashboard after login */
+	public function partner_admin_login_redirect( $redirect_to, $request, $user ) {
+		// Check if user is valid WP_User object and has partner_admin role
+		if ( ! is_wp_error( $user ) && isset( $user->roles ) && is_array( $user->roles ) ) {
+			if ( in_array( self::PARTNER_ROLE, $user->roles ) ) {
+				return home_url( '/partner-dashboard/' );
+			}
+		}
+		return $redirect_to;
 	}
 
 	/* Enforce login required: allow configured login and registration pages */
