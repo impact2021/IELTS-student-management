@@ -86,8 +86,8 @@ class Impact_Websites_Student_Management {
 		// Daily cron
 		add_action( self::CRON_HOOK, [ $this, 'daily_expire_check' ] );
 		
-		// Register additional shortcodes from IW_Shortcodes class
-		// Note: We only register extend-membership here as the other shortcodes
+		// Register extend-membership shortcode
+		// Note: Other shortcodes (iw_partner_dashboard, iw_register_with_code, etc.)
 		// are already registered above
 		add_shortcode( 'extend-membership', [ $this, 'shortcode_extend_membership' ] );
 		
