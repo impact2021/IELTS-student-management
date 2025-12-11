@@ -85,6 +85,25 @@ class IW_API_Client {
     }
     
     /**
+     * Change password
+     */
+    public function change_password($current_password, $new_password, $token) {
+        return $this->post('/auth/change-password', array(
+            'currentPassword' => $current_password,
+            'newPassword' => $new_password
+        ), $token);
+    }
+    
+    /**
+     * Extend membership with code
+     */
+    public function extend_membership($code, $token) {
+        return $this->post('/membership/extend', array(
+            'code' => $code
+        ), $token);
+    }
+    
+    /**
      * Make GET request
      */
     private function get($endpoint, $params = array(), $token = '') {

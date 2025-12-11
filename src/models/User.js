@@ -68,6 +68,14 @@ class User {
     const UserMembership = require('./UserMembership');
     return await UserMembership.getActiveMembership(userId);
   }
+
+  static async updatePassword(userId, newPassword) {
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await db.run(
+      'UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      [passwordHash, userId]
+    );
+  }
 }
 
 module.exports = User;

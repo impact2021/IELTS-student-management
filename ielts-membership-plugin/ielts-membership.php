@@ -152,6 +152,7 @@ class Impact_Websites_Student_Management {
 		add_settings_field( 'post_register_redirect', 'Post-registration redirect URL (site)', [ $this, 'field_post_register_redirect' ], 'iw-student-management', 'iw_sm_main' );
 		add_settings_field( 'post_login_subscriber_redirect', 'Post-login redirect URL for subscribers', [ $this, 'field_post_login_subscriber_redirect' ], 'iw-student-management', 'iw_sm_main' );
 		add_settings_field( 'post_login_partner_redirect', 'Post-login redirect URL for partner admins', [ $this, 'field_post_login_partner_redirect' ], 'iw-student-management', 'iw_sm_main' );
+		add_settings_field( 'post_login_norole_redirect', 'Post-login redirect URL for users with no role', [ $this, 'field_post_login_norole_redirect' ], 'iw-student-management', 'iw_sm_main' );
 		add_settings_field( 'login_page_url', 'Login page URL (required for site-wide access control)', [ $this, 'field_login_page_url' ], 'iw-student-management', 'iw_sm_main' );
 		add_settings_field( 'registration_page_url', 'Registration page URL (public)', [ $this, 'field_registration_page_url' ], 'iw-student-management', 'iw_sm_main' );
 	}
@@ -165,6 +166,7 @@ class Impact_Websites_Student_Management {
 		$vals['post_register_redirect'] = ! empty( $vals['post_register_redirect'] ) ? esc_url_raw( trim( $vals['post_register_redirect'] ) ) : '';
 		$vals['post_login_subscriber_redirect'] = ! empty( $vals['post_login_subscriber_redirect'] ) ? esc_url_raw( trim( $vals['post_login_subscriber_redirect'] ) ) : '';
 		$vals['post_login_partner_redirect'] = ! empty( $vals['post_login_partner_redirect'] ) ? esc_url_raw( trim( $vals['post_login_partner_redirect'] ) ) : '';
+		$vals['post_login_norole_redirect'] = ! empty( $vals['post_login_norole_redirect'] ) ? esc_url_raw( trim( $vals['post_login_norole_redirect'] ) ) : '';
 		$vals['login_page_url'] = ! empty( $vals['login_page_url'] ) ? esc_url_raw( trim( $vals['login_page_url'] ) ) : '';
 		$vals['registration_page_url'] = ! empty( $vals['registration_page_url'] ) ? esc_url_raw( trim( $vals['registration_page_url'] ) ) : '';
 		return $vals;
@@ -223,6 +225,14 @@ class Impact_Websites_Student_Management {
 		echo '<p class="description">Full URL to redirect partner admins to after login. Leave blank to use /partner-dashboard/.</p>';
 	}
 
+	public function field_post_login_norole_redirect() {
+		$options = get_option( self::OPTION_KEY, [] );
+		$val = $options['post_login_norole_redirect'] ?? '';
+		$placeholder = home_url( '/extend-my-membership/' );
+		echo '<input type="text" style="width:60%;" name="' . self::OPTION_KEY . '[post_login_norole_redirect]" id="iw_post_login_norole_redirect" value="' . esc_attr( $val ) . '" placeholder="' . esc_attr( $placeholder ) . '" />';
+		echo '<p class="description">Full URL to redirect users with no role to after login (e.g., expired users who need to extend membership). Leave blank to use /extend-my-membership/.</p>';
+	}
+
 	public function field_login_page_url() {
 		$options = get_option( self::OPTION_KEY, [] );
 		$val = $options['login_page_url'] ?? '';
@@ -257,7 +267,7 @@ class Impact_Websites_Student_Management {
 		<script>
 		jQuery(document).ready(function($) {
 			// Auto-fill empty URL fields with placeholder values on focus
-			$('#iw_post_register_redirect, #iw_post_login_subscriber_redirect, #iw_post_login_partner_redirect, #iw_login_page_url, #iw_registration_page_url').on('focus', function() {
+			$('#iw_post_register_redirect, #iw_post_login_subscriber_redirect, #iw_post_login_partner_redirect, #iw_post_login_norole_redirect, #iw_login_page_url, #iw_registration_page_url').on('focus', function() {
 				if ($(this).val() === '') {
 					$(this).val($(this).attr('placeholder'));
 				}
@@ -994,6 +1004,12 @@ class Impact_Websites_Student_Management {
 				if ( ! empty( $subscriber_redirect ) ) {
 					return $subscriber_redirect;
 				}
+			}
+			
+			// Check for users with no role (empty roles array)
+			if ( empty( $user->roles ) ) {
+				$norole_redirect = ! empty( $options['post_login_norole_redirect'] ) ? $options['post_login_norole_redirect'] : home_url( '/extend-my-membership/' );
+				return $norole_redirect;
 			}
 		}
 		return $redirect_to;
