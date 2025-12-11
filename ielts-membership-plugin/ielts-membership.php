@@ -215,6 +215,7 @@ class Impact_Websites_Student_Management {
 			58
 		);
 		add_submenu_page( 'iw-partnership-area', 'Settings', 'Settings', 'manage_options', 'iw-partnership-area' );
+		add_submenu_page( 'iw-partnership-area', 'Documentation', 'Docs', 'manage_options', 'iw-partnership-docs', [ $this, 'docs_page_html' ] );
 	}
 
 	public function register_settings() {
@@ -222,7 +223,6 @@ class Impact_Websites_Student_Management {
 		add_settings_section( 'iw_sm_main', 'Main settings', null, 'iw-student-management' );
 		add_settings_field( 'default_days', 'Default invite length (days)', [ $this, 'field_default_days' ], 'iw-student-management', 'iw_sm_main' );
 		add_settings_field( 'default_partner_limit', 'Max students per partner (0 = unlimited)', [ $this, 'field_partner_limit' ], 'iw-student-management', 'iw_sm_main' );
-		add_settings_field( 'expiry_action', 'Action on user expiry', [ $this, 'field_expiry_action' ], 'iw-student-management', 'iw_sm_main' );
 		add_settings_field( 'notify_days_before', 'Notify partners this many days before expiry', [ $this, 'field_notify_days_before' ], 'iw-student-management', 'iw_sm_main' );
 		add_settings_field( 'post_register_redirect', 'Post-registration redirect URL (site)', [ $this, 'field_post_register_redirect' ], 'iw-student-management', 'iw_sm_main' );
 		add_settings_field( 'post_login_subscriber_redirect', 'Post-login redirect URL for subscribers', [ $this, 'field_post_login_subscriber_redirect' ], 'iw-student-management', 'iw_sm_main' );
@@ -236,7 +236,6 @@ class Impact_Websites_Student_Management {
 		$vals = (array) $vals;
 		$vals['default_days'] = isset( $vals['default_days'] ) ? intval( $vals['default_days'] ) : 30;
 		$vals['default_partner_limit'] = isset( $vals['default_partner_limit'] ) ? intval( $vals['default_partner_limit'] ) : 10;
-		$vals['expiry_action'] = in_array( $vals['expiry_action'] ?? '', [ 'delete_user', 'remove_enrollment' ], true ) ? $vals['expiry_action'] : 'delete_user';
 		$vals['notify_days_before'] = isset( $vals['notify_days_before'] ) ? intval( $vals['notify_days_before'] ) : 7;
 		$vals['post_register_redirect'] = ! empty( $vals['post_register_redirect'] ) ? esc_url_raw( trim( $vals['post_register_redirect'] ) ) : '';
 		$vals['post_login_subscriber_redirect'] = ! empty( $vals['post_login_subscriber_redirect'] ) ? esc_url_raw( trim( $vals['post_login_subscriber_redirect'] ) ) : '';
@@ -260,14 +259,7 @@ class Impact_Websites_Student_Management {
 		echo '<p class="description">Set 0 for unlimited. This is the global max students for the shared company pool.</p>';
 	}
 
-	public function field_expiry_action() {
-		$options = get_option( self::OPTION_KEY, [] );
-		$val = $options['expiry_action'] ?? 'delete_user';
-		echo '<select name="' . self::OPTION_KEY . '[expiry_action]">';
-		echo '<option value="delete_user"' . selected( $val, 'delete_user', false ) . '>Delete user</option>';
-		echo '<option value="remove_enrollment"' . selected( $val, 'remove_enrollment', false ) . '>Remove LearnDash enrollments (keep WP user)</option>';
-		echo '</select>';
-	}
+
 
 	public function field_notify_days_before() {
 		$options = get_option( self::OPTION_KEY, [] );
@@ -352,6 +344,128 @@ class Impact_Websites_Student_Management {
 		<?php
 	}
 
+	public function docs_page_html() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+		?>
+		<div class="wrap">
+			<h1>Partnership area - Documentation</h1>
+			
+			<div style="max-width: 1200px;">
+				<h2>Available Shortcodes</h2>
+				<p>This plugin provides several shortcodes that you can use on your WordPress pages. Below is a comprehensive guide to each shortcode and its purpose.</p>
+				
+				<div style="background: #fff; border: 1px solid #ccc; padding: 20px; margin: 20px 0; border-radius: 4px;">
+					<h3 style="margin-top: 0;"><code>[iw_partner_dashboard]</code></h3>
+					<p><strong>Purpose:</strong> Displays the partner dashboard where partner admins can create invite codes and manage students.</p>
+					<p><strong>Access:</strong> Requires <code>manage_partner_invites</code> capability (available to administrator, partner_admin, or impact_manager roles).</p>
+					<p><strong>Features:</strong></p>
+					<ul>
+						<li>Create up to 10 single-use invite codes at once</li>
+						<li>View all invite codes (used and available)</li>
+						<li>See who used each code and when</li>
+						<li>List of all active students with expiration dates</li>
+						<li>Ability to revoke student access</li>
+						<li>Global dashboard - all partner admins see the same codes and students (shared company pool)</li>
+					</ul>
+					<p><strong>Usage:</strong> Create a page (e.g., "Partner Dashboard") and add this shortcode. Configure the post-login redirect for partner admins to point to this page in the settings.</p>
+				</div>
+				
+				<div style="background: #fff; border: 1px solid #ccc; padding: 20px; margin: 20px 0; border-radius: 4px;">
+					<h3 style="margin-top: 0;"><code>[iw_register_with_code]</code></h3>
+					<p><strong>Purpose:</strong> Displays the registration form where students can create accounts using invite codes.</p>
+					<p><strong>Access:</strong> Public (must be configured as publicly accessible in settings).</p>
+					<p><strong>Features:</strong></p>
+					<ul>
+						<li>Registration form with fields for invite code, first name, last name, username, email, and password</li>
+						<li>Validates single-use invite codes</li>
+						<li>Automatically creates WordPress user account with subscriber role</li>
+						<li>Enrolls new user in ALL LearnDash courses</li>
+						<li>Sets expiration date based on plugin settings</li>
+						<li>Automatically logs in user after registration</li>
+						<li>Notifies partner admin of successful registration</li>
+					</ul>
+					<p><strong>Usage:</strong> Create a page (e.g., "Register") and add this shortcode. Configure the Registration page URL in Partnership area > Settings to exempt this page from login enforcement.</p>
+				</div>
+				
+				<div style="background: #fff; border: 1px solid #ccc; padding: 20px; margin: 20px 0; border-radius: 4px;">
+					<h3 style="margin-top: 0;"><code>[iw_login]</code></h3>
+					<p><strong>Purpose:</strong> Displays a custom styled login form for the site.</p>
+					<p><strong>Access:</strong> Public.</p>
+					<p><strong>Features:</strong></p>
+					<ul>
+						<li>Custom styled login form with username/email and password fields</li>
+						<li>Remember me checkbox</li>
+						<li>Lost password link</li>
+						<li>Redirects users based on their role after login (configurable in settings)</li>
+					</ul>
+					<p><strong>Usage:</strong> Create a page (e.g., "Login") and add this shortcode. Configure the Login page URL in Partnership area > Settings for site-wide login enforcement.</p>
+				</div>
+				
+				<div style="background: #fff; border: 1px solid #ccc; padding: 20px; margin: 20px 0; border-radius: 4px;">
+					<h3 style="margin-top: 0;"><code>[iw_my_expiry]</code></h3>
+					<p><strong>Purpose:</strong> Displays the user's account information, allowing them to edit their profile and change their password.</p>
+					<p><strong>Access:</strong> Logged-in users only.</p>
+					<p><strong>Features:</strong></p>
+					<ul>
+						<li>Shows and allows editing of first name, last name, and email</li>
+						<li>Displays username (read-only)</li>
+						<li>Shows membership expiry date and days remaining</li>
+						<li>Password change form with current password verification</li>
+						<li>Indicates if membership has expired</li>
+					</ul>
+					<p><strong>Usage:</strong> Create a page (e.g., "My Account") and add this shortcode. This is useful for subscribers to manage their profile and see when their access expires.</p>
+				</div>
+				
+				<div style="background: #fff; border: 1px solid #ccc; padding: 20px; margin: 20px 0; border-radius: 4px;">
+					<h3 style="margin-top: 0;"><code>[extend-membership]</code></h3>
+					<p><strong>Purpose:</strong> Allows users with no role (expired users) to extend their membership using a new invite code.</p>
+					<p><strong>Access:</strong> Logged-in users only.</p>
+					<p><strong>Features:</strong></p>
+					<ul>
+						<li>Form to enter an extension code</li>
+						<li>Validates invite codes (single-use)</li>
+						<li>Restores subscriber role</li>
+						<li>Re-enrolls user in all LearnDash courses</li>
+						<li>Sets new expiration date</li>
+						<li>Notifies partner admin of membership extension</li>
+					</ul>
+					<p><strong>Usage:</strong> Create a page (e.g., "Extend My Membership") and add this shortcode. Configure the post-login redirect for users with no role to point to this page in the settings.</p>
+				</div>
+				
+				<h2>Important Notes</h2>
+				<div style="background: #fff3cd; border: 1px solid #ffeeba; padding: 15px; margin: 20px 0; border-radius: 4px;">
+					<h3 style="margin-top: 0;">User Expiry Behavior</h3>
+					<p>When a user's membership expires, the system automatically:</p>
+					<ul>
+						<li>Removes all LearnDash course enrollments</li>
+						<li>Changes the user's role to "none" (no role)</li>
+						<li>User can still log in but will have no access to courses</li>
+						<li>Users with no role are redirected to the extend membership page upon login</li>
+						<li>Partner admin receives notification of the expiration</li>
+					</ul>
+				</div>
+				
+				<div style="background: #d1ecf1; border: 1px solid #bee5eb; padding: 15px; margin: 20px 0; border-radius: 4px;">
+					<h3 style="margin-top: 0;">Required Configuration</h3>
+					<p>For the plugin to work correctly, you must:</p>
+					<ol>
+						<li>Create pages with the shortcodes listed above</li>
+						<li>Configure the Login page URL in Partnership area > Settings</li>
+						<li>Configure the Registration page URL in Partnership area > Settings</li>
+						<li>Set up post-login redirect URLs for different user roles</li>
+						<li>Configure the default invite length (days)</li>
+					</ol>
+				</div>
+				
+				<h2>Support</h2>
+				<p>If you encounter any issues or have questions about using these shortcodes, please contact the plugin administrator or refer to the main README file in the plugin directory.</p>
+			</div>
+		</div>
+		<?php
+	}
+
 	/* AJAX: create up to 10 invite codes at once (no expiry set) */
 	public function ajax_create_invite() {
 		if ( ! is_user_logged_in() || ! current_user_can( self::CAP_MANAGE ) ) {
@@ -408,7 +522,8 @@ class Impact_Websites_Student_Management {
 
 		update_user_meta( $student_id, self::META_USER_EXPIRY, time() );
 		$this->remove_user_enrollments( $student_id );
-		wp_update_user( [ 'ID' => $student_id, 'role' => 'expired' ] );
+		// Remove role by setting to empty string (no role)
+		wp_update_user( [ 'ID' => $student_id, 'role' => '' ] );
 
 		wp_send_json_success( 'revoked' );
 	}
@@ -836,10 +951,9 @@ class Impact_Websites_Student_Management {
 		}
 	}
 
-	/* Daily cron: notify and expire users (unchanged) */
+	/* Daily cron: notify and expire users */
 	public function daily_expire_check() {
 		$options = get_option( self::OPTION_KEY, [] );
-		$action = $options['expiry_action'] ?? 'delete_user';
 		$notify_days = intval( $options['notify_days_before'] ?? 7 );
 		$now = time();
 
@@ -871,7 +985,7 @@ class Impact_Websites_Student_Management {
 			}
 		}
 
-		// expire users
+		// expire users - remove LearnDash enrollments and set role to none
 		$users = get_users( [
 			'meta_query' => [
 				[
@@ -887,19 +1001,18 @@ class Impact_Websites_Student_Management {
 			$exp = intval( get_user_meta( $uid, self::META_USER_EXPIRY, true ) );
 			if ( $exp && $exp <= $now ) {
 				$manager_id = intval( get_user_meta( $uid, self::META_USER_MANAGER, true ) );
-				// Get user data before deletion for notification
+				// Get user data before updating for notification
 				$user_data = get_userdata( $uid );
-				if ( 'delete_user' === $action ) {
-					if ( $manager_id ) {
-						$this->notify_partner_user_expired( $manager_id, $uid, $exp, $user_data );
-					}
-					wp_delete_user( $uid );
-				} elseif ( 'remove_enrollment' === $action ) {
-					$this->remove_user_enrollments( $uid );
-					wp_update_user( [ 'ID' => $uid, 'role' => 'expired' ] );
-					if ( $manager_id ) {
-						$this->notify_partner_user_expired( $manager_id, $uid, $exp, $user_data );
-					}
+				
+				// Remove LearnDash enrollments
+				$this->remove_user_enrollments( $uid );
+				
+				// Set role to none (empty string)
+				wp_update_user( [ 'ID' => $uid, 'role' => '' ] );
+				
+				// Notify partner admin
+				if ( $manager_id ) {
+					$this->notify_partner_user_expired( $manager_id, $uid, $exp, $user_data );
 				}
 			}
 		}

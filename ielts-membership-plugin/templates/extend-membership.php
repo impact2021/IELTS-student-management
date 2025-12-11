@@ -3,30 +3,60 @@
  * Extend Membership Template
  */
 if (!defined('ABSPATH')) exit;
+
+$current_user = wp_get_current_user();
+$user_id = get_current_user_id();
 ?>
 
+<style>
+.iw-table { width:100%; max-width:720px; border-collapse:collapse; margin-bottom:1em; font-family: Arial, sans-serif; }
+.iw-table thead th { background:#f8f9fa; color:#333333; padding:14px; text-align:left; font-size:18px; border:1px solid #e6e6e6; }
+.iw-table td, .iw-table th { padding:12px; border:1px solid #e6e6e6; vertical-align:middle; }
+.iw-table td:nth-child(even) { background:#f7f7f7; }
+.iw-table td:first-child, .iw-table th:first-child { background:#f8f9fa; color:#333333; font-weight:600; width:35%; }
+.iw-input { width:100%; max-width:480px; padding:10px; border:1px solid #ccc; border-radius:4px; box-sizing:border-box; height:40px; }
+.iw-submit { background:#0073aa; color:#fff; border:none; padding:10px 16px; border-radius:4px; cursor:pointer; }
+.iw-message { padding:12px; margin:10px 0; border-radius:4px; }
+.iw-success { background:#d4edda; color:#155724; border:1px solid #c3e6cb; }
+.iw-error { background:#f8d7da; color:#721c24; border:1px solid #f5c6cb; }
+.iw-info { background:#d1ecf1; color:#0c5460; border:1px solid #bee5eb; }
+</style>
+
 <div class="iw-extend-membership-wrapper">
-    <div class="iw-extend-container">
-        <h2>Extend Your Membership</h2>
-        <p>Enter your extension code below to extend your membership access.</p>
-        
-        <form id="iw-extend-membership-form">
-            <div class="iw-form-group">
-                <label for="extension_code">Extension Code</label>
-                <input type="text" id="extension_code" name="extension_code" required placeholder="Enter your extension code" />
-            </div>
-            
-            <div id="iw-extend-message"></div>
-            
-            <button type="submit" class="iw-btn iw-btn-primary">Extend Membership</button>
-        </form>
-        
-        <div id="iw-extend-result" style="display: none;">
-            <div class="iw-success-message">
-                <h3>Membership Extended Successfully!</h3>
-                <p>Your membership has been extended. You can now access the site.</p>
-                <a href="<?php echo esc_url(home_url('/')); ?>" class="iw-btn iw-btn-primary">Go to Home</a>
-            </div>
+    <h2>Extend Your Membership</h2>
+    
+    <div class="iw-message iw-info">
+        <p><strong>Welcome, <?php echo esc_html($current_user->display_name); ?>!</strong></p>
+        <p>You currently have limited or no access to the site. To extend your membership and regain full access to all courses, please enter an extension code below.</p>
+        <p>If you don't have an extension code, please contact your partner admin to request one.</p>
+    </div>
+    
+    <table class="iw-table" role="presentation">
+        <thead>
+            <tr><th colspan="2">Enter Extension Code</th></tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td colspan="2">
+                    <form id="iw-extend-membership-form">
+                        <div style="margin-bottom:15px;">
+                            <label style="display:block;margin-bottom:5px;font-weight:600;">Extension Code</label>
+                            <input type="text" name="extension_code" class="iw-input" required placeholder="Enter your extension code" />
+                            <p style="color:#666;margin:6px 0 0;font-size:13px;">This is a single-use code provided by your partner admin.</p>
+                        </div>
+                        <div id="iw-extend-message"></div>
+                        <button type="submit" class="iw-submit">Extend Membership</button>
+                    </form>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    
+    <div id="iw-extend-result" style="display: none;">
+        <div class="iw-message iw-success">
+            <h3>Membership Extended Successfully!</h3>
+            <p>Your membership has been extended. You now have full access to all courses.</p>
+            <p><a href="<?php echo esc_url(home_url('/')); ?>" class="iw-submit">Go to Home</a></p>
         </div>
     </div>
 </div>
@@ -36,15 +66,15 @@ jQuery(document).ready(function($) {
     $('#iw-extend-membership-form').on('submit', function(e) {
         e.preventDefault();
         
-        var code = $('#extension_code').val().trim();
+        var code = $('input[name="extension_code"]').val().trim();
         var messageDiv = $('#iw-extend-message');
         
         if (!code) {
-            messageDiv.html('<div class="iw-error">Please enter an extension code</div>');
+            messageDiv.html('<div class="iw-message iw-error">Please enter an extension code</div>');
             return;
         }
         
-        messageDiv.html('<div class="iw-loading">Processing your extension code...</div>');
+        messageDiv.html('<span style="color:#666;">Processing your extension code...</span>');
         
         $.ajax({
             url: iwMembership.ajaxUrl,
@@ -59,12 +89,17 @@ jQuery(document).ready(function($) {
                     $('#iw-extend-membership-form').hide();
                     messageDiv.html('');
                     $('#iw-extend-result').show();
+                    
+                    // Redirect after 2 seconds
+                    setTimeout(function() {
+                        window.location.href = '<?php echo esc_url(home_url('/')); ?>';
+                    }, 2000);
                 } else {
-                    messageDiv.html('<div class="iw-error">' + response.data.message + '</div>');
+                    messageDiv.html('<div class="iw-message iw-error">' + (response.data.message || 'Extension failed') + '</div>');
                 }
             },
             error: function() {
-                messageDiv.html('<div class="iw-error">An error occurred. Please try again.</div>');
+                messageDiv.html('<div class="iw-message iw-error">An error occurred. Please try again.</div>');
             }
         });
     });

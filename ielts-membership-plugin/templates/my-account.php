@@ -3,137 +3,185 @@
  * My Account / Membership Expiry Template
  */
 if (!defined('ABSPATH')) exit;
+
+// Get current user data
+$current_user = wp_get_current_user();
+$user_id = get_current_user_id();
+$expiry_ts = intval(get_user_meta($user_id, '_iw_user_expiry', true));
+$now = time();
+$is_expired = ($expiry_ts && $expiry_ts <= $now);
 ?>
 
+<style>
+.iw-table { width:100%; max-width:920px; border-collapse:collapse; margin-bottom:1em; font-family: Arial, sans-serif; }
+.iw-table thead th { background:#f8f9fa; color:#333333; padding:14px; text-align:left; font-size:16px; border:1px solid #e6e6e6; }
+.iw-table td, .iw-table th { padding:12px; border:1px solid #e6e6e6; vertical-align:middle; }
+.iw-table td:nth-child(even) { background:#f7f7f7; }
+.iw-table td:first-child, .iw-table th:first-child { background:#f8f9fa; color:#333333; font-weight:600; width:35%; }
+.iw-input { width:100%; max-width:520px; padding:10px; border:1px solid #ccc; border-radius:4px; box-sizing:border-box; height:40px; }
+.iw-submit { background:#0073aa; color:#fff; border:none; padding:10px 16px; border-radius:4px; cursor:pointer; }
+.iw-message { padding:12px; margin:10px 0; border-radius:4px; }
+.iw-success { background:#d4edda; color:#155724; border:1px solid #c3e6cb; }
+.iw-error { background:#f8d7da; color:#721c24; border:1px solid #f5c6cb; }
+.iw-expiry-notice { padding:15px; margin:20px 0; border-radius:4px; background:#fff3cd; color:#856404; border:1px solid #ffeeba; }
+.iw-expired { background:#f8d7da; color:#721c24; border:1px solid #f5c6cb; }
+</style>
+
 <div class="iw-my-account-wrapper">
-    <div class="iw-account-container">
-        <h2>My Account</h2>
-        
-        <div id="iw-account-content">
-            <div class="iw-loading">Loading your account information...</div>
-        </div>
-        
-        <div class="iw-account-actions">
-            <button id="iw-logout-btn" class="iw-btn iw-btn-secondary">Logout</button>
-        </div>
+    <h2>My Account</h2>
+    
+    <!-- Personal Information Table -->
+    <table class="iw-table" role="presentation">
+        <thead>
+            <tr><th colspan="2">Personal Information</th></tr>
+        </thead>
+        <tbody>
+            <tr>
+                <th>First Name</th>
+                <td>
+                    <form class="iw-update-form" data-field="first_name">
+                        <input type="text" name="first_name" value="<?php echo esc_attr($current_user->first_name); ?>" class="iw-input" required />
+                        <button type="submit" class="iw-submit">Update</button>
+                        <div class="iw-update-message"></div>
+                    </form>
+                </td>
+            </tr>
+            <tr>
+                <th>Last Name</th>
+                <td>
+                    <form class="iw-update-form" data-field="last_name">
+                        <input type="text" name="last_name" value="<?php echo esc_attr($current_user->last_name); ?>" class="iw-input" required />
+                        <button type="submit" class="iw-submit">Update</button>
+                        <div class="iw-update-message"></div>
+                    </form>
+                </td>
+            </tr>
+            <tr>
+                <th>Email</th>
+                <td>
+                    <form class="iw-update-form" data-field="user_email">
+                        <input type="email" name="user_email" value="<?php echo esc_attr($current_user->user_email); ?>" class="iw-input" required />
+                        <button type="submit" class="iw-submit">Update</button>
+                        <div class="iw-update-message"></div>
+                    </form>
+                </td>
+            </tr>
+            <tr>
+                <th>Username</th>
+                <td><?php echo esc_html($current_user->user_login); ?> <em>(cannot be changed)</em></td>
+            </tr>
+            <?php if ($expiry_ts): ?>
+            <tr>
+                <th>Membership Expiry</th>
+                <td>
+                    <?php 
+                    echo esc_html(date_i18n('d/m/Y', $expiry_ts));
+                    if (!$is_expired) {
+                        $days_left = ceil(($expiry_ts - $now) / DAY_IN_SECONDS);
+                        echo ' (' . intval($days_left) . ' day' . ($days_left != 1 ? 's' : '') . ' remaining)';
+                    } else {
+                        echo ' <span style="color:red;font-weight:bold;">(EXPIRED)</span>';
+                    }
+                    ?>
+                </td>
+            </tr>
+            <?php endif; ?>
+        </tbody>
+    </table>
+    
+    <!-- Change Password Table -->
+    <table class="iw-table" role="presentation">
+        <thead>
+            <tr><th colspan="2">Change Password</th></tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td colspan="2">
+                    <form id="iw-change-password-form">
+                        <div style="margin-bottom:15px;">
+                            <label style="display:block;margin-bottom:5px;font-weight:600;">Current Password</label>
+                            <input type="password" name="current_password" class="iw-input" required />
+                        </div>
+                        <div style="margin-bottom:15px;">
+                            <label style="display:block;margin-bottom:5px;font-weight:600;">New Password</label>
+                            <input type="password" name="new_password" class="iw-input" required />
+                        </div>
+                        <div style="margin-bottom:15px;">
+                            <label style="display:block;margin-bottom:5px;font-weight:600;">Confirm New Password</label>
+                            <input type="password" name="confirm_password" class="iw-input" required />
+                        </div>
+                        <div id="password-change-message"></div>
+                        <button type="submit" class="iw-submit">Change Password</button>
+                    </form>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    
+    <?php if ($is_expired): ?>
+    <div class="iw-expiry-notice iw-expired">
+        <p><strong>Your membership has expired.</strong> Please contact your partner admin or extend your membership to regain access.</p>
     </div>
+    <?php endif; ?>
 </div>
 
 <script>
 jQuery(document).ready(function($) {
-    // Load account data
-    function loadAccountData() {
+    // Handle profile field updates
+    $('.iw-update-form').on('submit', function(e) {
+        e.preventDefault();
+        
+        var form = $(this);
+        var field = form.data('field');
+        var value = form.find('input[name="' + field + '"]').val();
+        var messageDiv = form.find('.iw-update-message');
+        
+        messageDiv.html('<span style="color:#666;">Updating...</span>');
+        
         $.ajax({
             url: iwMembership.ajaxUrl,
             type: 'POST',
             data: {
-                action: 'iw_get_profile',
-                nonce: iwMembership.nonce
+                action: 'iw_update_profile',
+                nonce: iwMembership.nonce,
+                field: field,
+                value: value
             },
             success: function(response) {
                 if (response.success) {
-                    displayAccountData(response.data);
+                    messageDiv.html('<span style="color:green;">✓ Updated</span>');
+                    setTimeout(function() { messageDiv.html(''); }, 3000);
                 } else {
-                    $('#iw-account-content').html('<div class="iw-error">Error loading account data</div>');
+                    messageDiv.html('<span style="color:red;">Error: ' + (response.data.message || 'Update failed') + '</span>');
                 }
+            },
+            error: function() {
+                messageDiv.html('<span style="color:red;">Error: Could not update</span>');
             }
         });
-    }
+    });
     
-    function displayAccountData(data) {
-        var html = '<div class="iw-account-info">';
-        html += '<h3>Personal Information</h3>';
-        html += '<table class="iw-account-table">';
-        html += '<tbody>';
-        html += '<tr><th>Name:</th><td>' + $('<div>').text(data.user.first_name).html() + ' ' + $('<div>').text(data.user.last_name).html() + '</td></tr>';
-        html += '<tr><th>Email:</th><td>' + $('<div>').text(data.user.email).html() + '</td></tr>';
-        html += '<tr><th>Member Since:</th><td>' + new Date(data.user.created_at).toLocaleDateString() + '</td></tr>';
-        html += '</tbody>';
-        html += '</table>';
-        html += '</div>';
-        
-        if (data.membership) {
-            html += '<div class="iw-membership-info">';
-            html += '<h3>Current Membership</h3>';
-            html += '<table class="iw-account-table">';
-            html += '<tbody>';
-            html += '<tr><th>Plan:</th><td>' + $('<div>').text(data.membership.plan_name).html() + '</td></tr>';
-            html += '<tr><th>Status:</th><td><span class="iw-status-' + $('<div>').text(data.membership.status).html() + '">' + $('<div>').text(data.membership.status).html().toUpperCase() + '</span></td></tr>';
-            html += '<tr><th>Start Date:</th><td>' + new Date(data.membership.start_date).toLocaleDateString() + '</td></tr>';
-            html += '<tr><th>Expiry Date:</th><td>' + new Date(data.membership.end_date).toLocaleDateString() + '</td></tr>';
-            html += '<tr><th>Payment Status:</th><td>' + $('<div>').text(data.membership.payment_status).html() + '</td></tr>';
-            html += '</tbody>';
-            html += '</table>';
-            html += '</div>';
-            
-            // Check if membership is expiring soon
-            var expiryDate = new Date(data.membership.end_date);
-            var today = new Date();
-            var daysUntilExpiry = Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24));
-            
-            if (daysUntilExpiry > 0 && daysUntilExpiry <= 7) {
-                html += '<div class="iw-notice iw-notice-warning">';
-                html += '<p>Your membership expires in ' + daysUntilExpiry + ' day(s)!</p>';
-                html += '</div>';
-            } else if (daysUntilExpiry <= 0) {
-                html += '<div class="iw-notice iw-notice-error">';
-                html += '<p>Your membership has expired. Please renew to continue accessing services.</p>';
-                html += '</div>';
-            }
-        } else {
-            html += '<div class="iw-no-membership">';
-            html += '<p>You don\'t have an active membership.</p>';
-            html += '<a href="' + iwMembership.plansUrl + '" class="iw-btn iw-btn-primary">View Plans</a>';
-            html += '</div>';
-        }
-        
-        // Add password change section
-        html += '<div class="iw-password-change">';
-        html += '<h3>Change Password</h3>';
-        html += '<form id="iw-change-password-form">';
-        html += '<div class="iw-form-group">';
-        html += '<label for="current_password">Current Password</label>';
-        html += '<input type="password" id="current_password" name="current_password" required />';
-        html += '</div>';
-        html += '<div class="iw-form-group">';
-        html += '<label for="new_password">New Password</label>';
-        html += '<input type="password" id="new_password" name="new_password" required />';
-        html += '</div>';
-        html += '<div class="iw-form-group">';
-        html += '<label for="confirm_password">Confirm New Password</label>';
-        html += '<input type="password" id="confirm_password" name="confirm_password" required />';
-        html += '</div>';
-        html += '<div id="password-change-message"></div>';
-        html += '<button type="submit" class="iw-btn iw-btn-primary">Change Password</button>';
-        html += '</form>';
-        html += '</div>';
-        
-        $('#iw-account-content').html(html);
-        
-        // Bind password change form handler
-        $('#iw-change-password-form').on('submit', handlePasswordChange);
-    }
-    
-    function handlePasswordChange(e) {
+    // Handle password change
+    $('#iw-change-password-form').on('submit', function(e) {
         e.preventDefault();
         
-        var currentPassword = $('#current_password').val();
-        var newPassword = $('#new_password').val();
-        var confirmPassword = $('#confirm_password').val();
+        var currentPassword = $('input[name="current_password"]').val();
+        var newPassword = $('input[name="new_password"]').val();
+        var confirmPassword = $('input[name="confirm_password"]').val();
         var messageDiv = $('#password-change-message');
         
         // Validate passwords
         if (newPassword !== confirmPassword) {
-            messageDiv.html('<div class="iw-error">New passwords do not match</div>');
+            messageDiv.html('<div class="iw-message iw-error">New passwords do not match</div>');
             return;
         }
         
-        if (newPassword.length < 6) {
-            messageDiv.html('<div class="iw-error">New password must be at least 6 characters</div>');
+        if (newPassword.length < 8) {
+            messageDiv.html('<div class="iw-message iw-error">New password must be at least 8 characters</div>');
             return;
         }
         
-        messageDiv.html('<div class="iw-loading">Changing password...</div>');
+        messageDiv.html('<span style="color:#666;">Changing password...</span>');
         
         $.ajax({
             url: iwMembership.ajaxUrl,
@@ -146,40 +194,16 @@ jQuery(document).ready(function($) {
             },
             success: function(response) {
                 if (response.success) {
-                    messageDiv.html('<div class="iw-success">Password changed successfully!</div>');
+                    messageDiv.html('<div class="iw-message iw-success">Password changed successfully!</div>');
                     $('#iw-change-password-form')[0].reset();
                 } else {
-                    messageDiv.html('<div class="iw-error">' + response.data.message + '</div>');
+                    messageDiv.html('<div class="iw-message iw-error">' + (response.data.message || 'Password change failed') + '</div>');
                 }
             },
             error: function() {
-                messageDiv.html('<div class="iw-error">An error occurred. Please try again.</div>');
+                messageDiv.html('<div class="iw-message iw-error">An error occurred. Please try again.</div>');
             }
         });
-    }
-    
-    // Logout handler
-    $('#iw-logout-btn').on('click', function(e) {
-        e.preventDefault();
-        
-        if (confirm('Are you sure you want to logout?')) {
-            $.ajax({
-                url: iwMembership.ajaxUrl,
-                type: 'POST',
-                data: {
-                    action: 'iw_logout',
-                    nonce: iwMembership.nonce
-                },
-                success: function(response) {
-                    if (response.success) {
-                        window.location.href = response.data.redirect;
-                    }
-                }
-            });
-        }
     });
-    
-    // Load data on page load
-    loadAccountData();
 });
 </script>
