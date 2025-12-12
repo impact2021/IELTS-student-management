@@ -402,14 +402,11 @@ class Impact_Websites_Student_Management {
 		
 		foreach ( $pages as $page ) {
 			$page_slug = $page->post_name;
-			// More precise matching: exact match or default slug is part of the page slug
+			// Match pages that contain the default slug as a word
+			// For example: 'login' matches 'login', 'my-login', 'login-page'
 			$is_default = false;
-			if ( $default_slug ) {
-				// Exact match or contains as whole word (e.g., 'login' in 'my-login' but not in 'loginform')
-				$is_default = ( $page_slug === $default_slug ) || 
-				              ( $page_slug === ( $default_slug . '-page' ) ) ||
-				              ( strpos( $page_slug, $default_slug . '-' ) === 0 ) ||
-				              ( strpos( $page_slug, '-' . $default_slug ) !== false );
+			if ( $default_slug && strpos( $page_slug, $default_slug ) !== false ) {
+				$is_default = true;
 			}
 			$label = esc_html( $page->post_title );
 			
