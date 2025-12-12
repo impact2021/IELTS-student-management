@@ -307,17 +307,7 @@ class Impact_Websites_Student_Management {
 
 	public function field_post_register_redirect() {
 		$options = get_option( self::OPTION_KEY, [] );
-		$selected = $options['post_register_redirect'] ?? 0;
-		
-		// If we have an old URL value, try to convert it to a page ID
-		if ( is_string( $selected ) && ! empty( $selected ) ) {
-			$page_id = url_to_postid( $selected );
-			if ( $page_id ) {
-				$selected = $page_id;
-			} else {
-				$selected = 0;
-			}
-		}
+		$selected = $this->convert_legacy_url_to_page_id( $options['post_register_redirect'] ?? 0 );
 		
 		$this->render_page_dropdown( 'post_register_redirect', $selected, 'my-account' );
 		echo '<p class="description">Select the page to redirect newly-registered users to after automatic login (site-wide). Leave blank to send users to the homepage.</p>';
@@ -325,17 +315,7 @@ class Impact_Websites_Student_Management {
 
 	public function field_post_login_subscriber_redirect() {
 		$options = get_option( self::OPTION_KEY, [] );
-		$selected = $options['post_login_subscriber_redirect'] ?? 0;
-		
-		// If we have an old URL value, try to convert it to a page ID
-		if ( is_string( $selected ) && ! empty( $selected ) ) {
-			$page_id = url_to_postid( $selected );
-			if ( $page_id ) {
-				$selected = $page_id;
-			} else {
-				$selected = 0;
-			}
-		}
+		$selected = $this->convert_legacy_url_to_page_id( $options['post_login_subscriber_redirect'] ?? 0 );
 		
 		$this->render_page_dropdown( 'post_login_subscriber_redirect', $selected, 'my-account' );
 		echo '<p class="description">Select the page to redirect subscribers to after login. Leave blank to use default WordPress behavior.</p>';
@@ -343,17 +323,7 @@ class Impact_Websites_Student_Management {
 
 	public function field_post_login_partner_redirect() {
 		$options = get_option( self::OPTION_KEY, [] );
-		$selected = $options['post_login_partner_redirect'] ?? 0;
-		
-		// If we have an old URL value, try to convert it to a page ID
-		if ( is_string( $selected ) && ! empty( $selected ) ) {
-			$page_id = url_to_postid( $selected );
-			if ( $page_id ) {
-				$selected = $page_id;
-			} else {
-				$selected = 0;
-			}
-		}
+		$selected = $this->convert_legacy_url_to_page_id( $options['post_login_partner_redirect'] ?? 0 );
 		
 		$this->render_page_dropdown( 'post_login_partner_redirect', $selected, 'partner-dashboard' );
 		echo '<p class="description">Select the page to redirect partner admins to after login. Leave blank to use partner-dashboard.</p>';
@@ -361,17 +331,7 @@ class Impact_Websites_Student_Management {
 
 	public function field_post_login_norole_redirect() {
 		$options = get_option( self::OPTION_KEY, [] );
-		$selected = $options['post_login_norole_redirect'] ?? 0;
-		
-		// If we have an old URL value, try to convert it to a page ID
-		if ( is_string( $selected ) && ! empty( $selected ) ) {
-			$page_id = url_to_postid( $selected );
-			if ( $page_id ) {
-				$selected = $page_id;
-			} else {
-				$selected = 0;
-			}
-		}
+		$selected = $this->convert_legacy_url_to_page_id( $options['post_login_norole_redirect'] ?? 0 );
 		
 		$this->render_page_dropdown( 'post_login_norole_redirect', $selected, 'extend-my-membership' );
 		echo '<p class="description">Select the page to redirect users with no role to after login (e.g., expired users who need to extend membership). Leave blank to use extend-my-membership.</p>';
@@ -379,17 +339,7 @@ class Impact_Websites_Student_Management {
 
 	public function field_login_page_url() {
 		$options = get_option( self::OPTION_KEY, [] );
-		$selected = $options['login_page_url'] ?? 0;
-		
-		// If we have an old URL value, try to convert it to a page ID
-		if ( is_string( $selected ) && ! empty( $selected ) ) {
-			$page_id = url_to_postid( $selected );
-			if ( $page_id ) {
-				$selected = $page_id;
-			} else {
-				$selected = 0;
-			}
-		}
+		$selected = $this->convert_legacy_url_to_page_id( $options['login_page_url'] ?? 0 );
 		
 		$this->render_page_dropdown( 'login_page_url', $selected, 'login' );
 		echo '<p class="description">Select the page that contains the [iw_login] shortcode. This is required for site-wide access control.</p>';
@@ -397,17 +347,7 @@ class Impact_Websites_Student_Management {
 
 	public function field_registration_page_url() {
 		$options = get_option( self::OPTION_KEY, [] );
-		$selected = $options['registration_page_url'] ?? 0;
-		
-		// If we have an old URL value, try to convert it to a page ID
-		if ( is_string( $selected ) && ! empty( $selected ) ) {
-			$page_id = url_to_postid( $selected );
-			if ( $page_id ) {
-				$selected = $page_id;
-			} else {
-				$selected = 0;
-			}
-		}
+		$selected = $this->convert_legacy_url_to_page_id( $options['registration_page_url'] ?? 0 );
 		
 		$this->render_page_dropdown( 'registration_page_url', $selected, 'register' );
 		echo '<p class="description">Select the page that contains the [iw_register_with_code] shortcode. This page must be publicly accessible so students can register.</p>';
@@ -415,20 +355,33 @@ class Impact_Websites_Student_Management {
 	
 	public function field_logout_redirect() {
 		$options = get_option( self::OPTION_KEY, [] );
-		$selected = $options['logout_redirect'] ?? 0;
-		
-		// If we have an old URL value, try to convert it to a page ID
-		if ( is_string( $selected ) && ! empty( $selected ) ) {
-			$page_id = url_to_postid( $selected );
-			if ( $page_id ) {
-				$selected = $page_id;
-			} else {
-				$selected = 0;
-			}
-		}
+		$selected = $this->convert_legacy_url_to_page_id( $options['logout_redirect'] ?? 0 );
 		
 		$this->render_page_dropdown( 'logout_redirect', $selected, 'login' );
 		echo '<p class="description">Select the page to redirect users to after logout. Leave blank to use the login page.</p>';
+	}
+	
+	/**
+	 * Convert legacy URL string to page ID
+	 * 
+	 * @param mixed $value The value to convert (page ID or legacy URL string)
+	 * @return int The page ID or 0 if not found
+	 */
+	private function convert_legacy_url_to_page_id( $value ) {
+		// If it's already a page ID, return it
+		if ( is_int( $value ) || ( is_numeric( $value ) && intval( $value ) > 0 ) ) {
+			return intval( $value );
+		}
+		
+		// If we have an old URL value, try to convert it to a page ID
+		if ( is_string( $value ) && ! empty( $value ) ) {
+			$page_id = url_to_postid( $value );
+			if ( $page_id ) {
+				return $page_id;
+			}
+		}
+		
+		return 0;
 	}
 	
 	/**
@@ -449,7 +402,12 @@ class Impact_Websites_Student_Management {
 		
 		foreach ( $pages as $page ) {
 			$page_slug = $page->post_name;
-			$is_default = ( $default_slug && strpos( $page_slug, $default_slug ) !== false );
+			// More precise matching: exact match or slug contains the default as a word
+			$is_default = false;
+			if ( $default_slug ) {
+				$is_default = ( $page_slug === $default_slug ) || 
+				              ( preg_match( '/\b' . preg_quote( $default_slug, '/' ) . '\b/', $page_slug ) );
+			}
 			$label = esc_html( $page->post_title );
 			
 			// Add indicator for default/recommended page
@@ -457,8 +415,8 @@ class Impact_Websites_Student_Management {
 				$label .= ' (recommended)';
 			}
 			
-			echo '<option value="' . esc_attr( $page->ID ) . '"';
-			selected( $selected, $page->ID );
+			echo '<option value="' . esc_attr( $page->ID ) . '" ';
+			echo selected( $selected, $page->ID, false );
 			echo '>' . $label . '</option>';
 		}
 		
