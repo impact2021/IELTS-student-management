@@ -256,12 +256,13 @@ class Impact_Websites_Student_Management {
 		add_settings_field( 'default_days', 'Default invite length (days)', [ $this, 'field_default_days' ], 'iw-student-management', 'iw_sm_main' );
 		add_settings_field( 'default_partner_limit', 'Max students per partner (0 = unlimited)', [ $this, 'field_partner_limit' ], 'iw-student-management', 'iw_sm_main' );
 		add_settings_field( 'notify_days_before', 'Notify partners this many days before expiry', [ $this, 'field_notify_days_before' ], 'iw-student-management', 'iw_sm_main' );
-		add_settings_field( 'post_register_redirect', 'Post-registration redirect URL (site)', [ $this, 'field_post_register_redirect' ], 'iw-student-management', 'iw_sm_main' );
-		add_settings_field( 'post_login_subscriber_redirect', 'Post-login redirect URL for subscribers', [ $this, 'field_post_login_subscriber_redirect' ], 'iw-student-management', 'iw_sm_main' );
-		add_settings_field( 'post_login_partner_redirect', 'Post-login redirect URL for partner admins', [ $this, 'field_post_login_partner_redirect' ], 'iw-student-management', 'iw_sm_main' );
-		add_settings_field( 'post_login_norole_redirect', 'Post-login redirect URL for users with no role', [ $this, 'field_post_login_norole_redirect' ], 'iw-student-management', 'iw_sm_main' );
-		add_settings_field( 'login_page_url', 'Login page URL (required for site-wide access control)', [ $this, 'field_login_page_url' ], 'iw-student-management', 'iw_sm_main' );
-		add_settings_field( 'registration_page_url', 'Registration page URL (public)', [ $this, 'field_registration_page_url' ], 'iw-student-management', 'iw_sm_main' );
+		add_settings_field( 'post_register_redirect', 'Post-registration redirect page', [ $this, 'field_post_register_redirect' ], 'iw-student-management', 'iw_sm_main' );
+		add_settings_field( 'post_login_subscriber_redirect', 'Post-login redirect page for subscribers', [ $this, 'field_post_login_subscriber_redirect' ], 'iw-student-management', 'iw_sm_main' );
+		add_settings_field( 'post_login_partner_redirect', 'Post-login redirect page for partner admins', [ $this, 'field_post_login_partner_redirect' ], 'iw-student-management', 'iw_sm_main' );
+		add_settings_field( 'post_login_norole_redirect', 'Post-login redirect page for users with no role', [ $this, 'field_post_login_norole_redirect' ], 'iw-student-management', 'iw_sm_main' );
+		add_settings_field( 'logout_redirect', 'Post-logout redirect page', [ $this, 'field_logout_redirect' ], 'iw-student-management', 'iw_sm_main' );
+		add_settings_field( 'login_page_url', 'Login page (required for site-wide access control)', [ $this, 'field_login_page_url' ], 'iw-student-management', 'iw_sm_main' );
+		add_settings_field( 'registration_page_url', 'Registration page (public)', [ $this, 'field_registration_page_url' ], 'iw-student-management', 'iw_sm_main' );
 	}
 
 	public function sanitize_options( $vals ) {
@@ -269,12 +270,16 @@ class Impact_Websites_Student_Management {
 		$vals['default_days'] = isset( $vals['default_days'] ) ? intval( $vals['default_days'] ) : 30;
 		$vals['default_partner_limit'] = isset( $vals['default_partner_limit'] ) ? intval( $vals['default_partner_limit'] ) : 10;
 		$vals['notify_days_before'] = isset( $vals['notify_days_before'] ) ? intval( $vals['notify_days_before'] ) : 7;
-		$vals['post_register_redirect'] = ! empty( $vals['post_register_redirect'] ) ? esc_url_raw( trim( $vals['post_register_redirect'] ) ) : '';
-		$vals['post_login_subscriber_redirect'] = ! empty( $vals['post_login_subscriber_redirect'] ) ? esc_url_raw( trim( $vals['post_login_subscriber_redirect'] ) ) : '';
-		$vals['post_login_partner_redirect'] = ! empty( $vals['post_login_partner_redirect'] ) ? esc_url_raw( trim( $vals['post_login_partner_redirect'] ) ) : '';
-		$vals['post_login_norole_redirect'] = ! empty( $vals['post_login_norole_redirect'] ) ? esc_url_raw( trim( $vals['post_login_norole_redirect'] ) ) : '';
-		$vals['login_page_url'] = ! empty( $vals['login_page_url'] ) ? esc_url_raw( trim( $vals['login_page_url'] ) ) : '';
-		$vals['registration_page_url'] = ! empty( $vals['registration_page_url'] ) ? esc_url_raw( trim( $vals['registration_page_url'] ) ) : '';
+		
+		// For page dropdowns, store the page ID as integer
+		$vals['post_register_redirect'] = isset( $vals['post_register_redirect'] ) ? intval( $vals['post_register_redirect'] ) : 0;
+		$vals['post_login_subscriber_redirect'] = isset( $vals['post_login_subscriber_redirect'] ) ? intval( $vals['post_login_subscriber_redirect'] ) : 0;
+		$vals['post_login_partner_redirect'] = isset( $vals['post_login_partner_redirect'] ) ? intval( $vals['post_login_partner_redirect'] ) : 0;
+		$vals['post_login_norole_redirect'] = isset( $vals['post_login_norole_redirect'] ) ? intval( $vals['post_login_norole_redirect'] ) : 0;
+		$vals['logout_redirect'] = isset( $vals['logout_redirect'] ) ? intval( $vals['logout_redirect'] ) : 0;
+		$vals['login_page_url'] = isset( $vals['login_page_url'] ) ? intval( $vals['login_page_url'] ) : 0;
+		$vals['registration_page_url'] = isset( $vals['registration_page_url'] ) ? intval( $vals['registration_page_url'] ) : 0;
+		
 		return $vals;
 	}
 
@@ -302,50 +307,146 @@ class Impact_Websites_Student_Management {
 
 	public function field_post_register_redirect() {
 		$options = get_option( self::OPTION_KEY, [] );
-		$val = $options['post_register_redirect'] ?? '';
-		$placeholder = home_url( '/my-account' );
-		echo '<input type="text" style="width:60%;" name="' . self::OPTION_KEY . '[post_register_redirect]" id="iw_post_register_redirect" value="' . esc_attr( $val ) . '" placeholder="' . esc_attr( $placeholder ) . '" />';
-		echo '<p class="description">Full URL to redirect newly-registered users to after automatic login (site-wide). Leave blank to send users to the homepage.</p>';
+		$selected = $this->convert_legacy_url_to_page_id( $options['post_register_redirect'] ?? 0 );
+		
+		$this->render_page_dropdown( 'post_register_redirect', $selected, 'my-account' );
+		echo '<p class="description">Select the page to redirect newly-registered users to after automatic login (site-wide). Leave blank to send users to the homepage.</p>';
 	}
 
 	public function field_post_login_subscriber_redirect() {
 		$options = get_option( self::OPTION_KEY, [] );
-		$val = $options['post_login_subscriber_redirect'] ?? '';
-		$placeholder = home_url( '/my-account' );
-		echo '<input type="text" style="width:60%;" name="' . self::OPTION_KEY . '[post_login_subscriber_redirect]" id="iw_post_login_subscriber_redirect" value="' . esc_attr( $val ) . '" placeholder="' . esc_attr( $placeholder ) . '" />';
-		echo '<p class="description">Full URL to redirect subscribers to after login. Leave blank to use default WordPress behavior.</p>';
+		$selected = $this->convert_legacy_url_to_page_id( $options['post_login_subscriber_redirect'] ?? 0 );
+		
+		$this->render_page_dropdown( 'post_login_subscriber_redirect', $selected, 'my-account' );
+		echo '<p class="description">Select the page to redirect subscribers to after login. Leave blank to use default WordPress behavior.</p>';
 	}
 
 	public function field_post_login_partner_redirect() {
 		$options = get_option( self::OPTION_KEY, [] );
-		$val = $options['post_login_partner_redirect'] ?? '';
-		$placeholder = home_url( '/partner-dashboard/' );
-		echo '<input type="text" style="width:60%;" name="' . self::OPTION_KEY . '[post_login_partner_redirect]" id="iw_post_login_partner_redirect" value="' . esc_attr( $val ) . '" placeholder="' . esc_attr( $placeholder ) . '" />';
-		echo '<p class="description">Full URL to redirect partner admins to after login. Leave blank to use /partner-dashboard/.</p>';
+		$selected = $this->convert_legacy_url_to_page_id( $options['post_login_partner_redirect'] ?? 0 );
+		
+		$this->render_page_dropdown( 'post_login_partner_redirect', $selected, 'partner-dashboard' );
+		echo '<p class="description">Select the page to redirect partner admins to after login. Leave blank to use partner-dashboard.</p>';
 	}
 
 	public function field_post_login_norole_redirect() {
 		$options = get_option( self::OPTION_KEY, [] );
-		$val = $options['post_login_norole_redirect'] ?? '';
-		$placeholder = home_url( '/extend-my-membership/' );
-		echo '<input type="text" style="width:60%;" name="' . self::OPTION_KEY . '[post_login_norole_redirect]" id="iw_post_login_norole_redirect" value="' . esc_attr( $val ) . '" placeholder="' . esc_attr( $placeholder ) . '" />';
-		echo '<p class="description">Full URL to redirect users with no role to after login (e.g., expired users who need to extend membership). Leave blank to use /extend-my-membership/.</p>';
+		$selected = $this->convert_legacy_url_to_page_id( $options['post_login_norole_redirect'] ?? 0 );
+		
+		$this->render_page_dropdown( 'post_login_norole_redirect', $selected, 'extend-my-membership' );
+		echo '<p class="description">Select the page to redirect users with no role to after login (e.g., expired users who need to extend membership). Leave blank to use extend-my-membership.</p>';
 	}
 
 	public function field_login_page_url() {
 		$options = get_option( self::OPTION_KEY, [] );
-		$val = $options['login_page_url'] ?? '';
-		$placeholder = home_url( '/login/' );
-		echo '<input type="text" style="width:60%;" name="' . self::OPTION_KEY . '[login_page_url]" id="iw_login_page_url" value="' . esc_attr( $val ) . '" placeholder="' . esc_attr( $placeholder ) . '" />';
-		echo '<p class="description">Full URL of the page that contains the [iw_login] shortcode. Example: https://example.com/login</p>';
+		$selected = $this->convert_legacy_url_to_page_id( $options['login_page_url'] ?? 0 );
+		
+		$this->render_page_dropdown( 'login_page_url', $selected, 'login' );
+		echo '<p class="description">Select the page that contains the [iw_login] shortcode. This is required for site-wide access control.</p>';
 	}
 
 	public function field_registration_page_url() {
 		$options = get_option( self::OPTION_KEY, [] );
-		$val = $options['registration_page_url'] ?? '';
-		$placeholder = home_url( '/register/' );
-		echo '<input type="text" style="width:60%;" name="' . self::OPTION_KEY . '[registration_page_url]" id="iw_registration_page_url" value="' . esc_attr( $val ) . '" placeholder="' . esc_attr( $placeholder ) . '" />';
-		echo '<p class="description">Full URL of the page that contains the [iw_register_with_code] shortcode. This page must be publicly accessible so students can register.</p>';
+		$selected = $this->convert_legacy_url_to_page_id( $options['registration_page_url'] ?? 0 );
+		
+		$this->render_page_dropdown( 'registration_page_url', $selected, 'register' );
+		echo '<p class="description">Select the page that contains the [iw_register_with_code] shortcode. This page must be publicly accessible so students can register.</p>';
+	}
+	
+	public function field_logout_redirect() {
+		$options = get_option( self::OPTION_KEY, [] );
+		$selected = $this->convert_legacy_url_to_page_id( $options['logout_redirect'] ?? 0 );
+		
+		$this->render_page_dropdown( 'logout_redirect', $selected, 'login' );
+		echo '<p class="description">Select the page to redirect users to after logout. Leave blank to use the login page.</p>';
+	}
+	
+	/**
+	 * Convert legacy URL string to page ID
+	 * 
+	 * @param mixed $value The value to convert (page ID or legacy URL string)
+	 * @return int The page ID or 0 if not found
+	 */
+	private function convert_legacy_url_to_page_id( $value ) {
+		// If it's already a page ID, return it
+		if ( is_int( $value ) || ( is_numeric( $value ) && intval( $value ) > 0 ) ) {
+			return intval( $value );
+		}
+		
+		// If we have an old URL value, try to convert it to a page ID
+		if ( is_string( $value ) && ! empty( $value ) ) {
+			$page_id = url_to_postid( $value );
+			if ( $page_id ) {
+				return $page_id;
+			}
+		}
+		
+		return 0;
+	}
+	
+	/**
+	 * Render a page dropdown selector
+	 * 
+	 * @param string $field_name The field name for the setting
+	 * @param int $selected The currently selected page ID
+	 * @param string $default_slug The default page slug to highlight
+	 */
+	private function render_page_dropdown( $field_name, $selected, $default_slug = '' ) {
+		$pages = get_pages( array(
+			'sort_column' => 'post_title',
+			'sort_order' => 'ASC',
+		) );
+		
+		echo '<select name="' . esc_attr( self::OPTION_KEY . '[' . $field_name . ']' ) . '" id="iw_' . esc_attr( $field_name ) . '" style="width:60%;">';
+		echo '<option value="0">' . esc_html( '-- Select a page --' ) . '</option>';
+		
+		foreach ( $pages as $page ) {
+			$page_slug = $page->post_name;
+			// Match pages that contain the default slug as a word
+			// For example: 'login' matches 'login', 'my-login', 'login-page'
+			$is_default = false;
+			if ( $default_slug && strpos( $page_slug, $default_slug ) !== false ) {
+				$is_default = true;
+			}
+			$label = esc_html( $page->post_title );
+			
+			// Add indicator for default/recommended page
+			if ( $is_default ) {
+				$label .= ' (recommended)';
+			}
+			
+			echo '<option value="' . esc_attr( $page->ID ) . '"';
+			selected( $selected, $page->ID );
+			echo '>' . $label . '</option>';
+		}
+		
+		echo '</select>';
+	}
+	
+	/**
+	 * Get URL from page ID setting with fallback
+	 * 
+	 * @param mixed $page_id_or_url The page ID (int) or legacy URL (string)
+	 * @param string $fallback_url The fallback URL if page ID is not set
+	 * @return string The page URL or fallback URL
+	 */
+	private function get_url_from_page_setting( $page_id_or_url, $fallback_url = '' ) {
+		// If it's already a URL string (legacy), return it
+		if ( is_string( $page_id_or_url ) && ! empty( $page_id_or_url ) ) {
+			return $page_id_or_url;
+		}
+		
+		// If it's a page ID, get the permalink
+		$page_id = intval( $page_id_or_url );
+		if ( $page_id > 0 ) {
+			$url = get_permalink( $page_id );
+			if ( $url && ! is_wp_error( $url ) ) {
+				return $url;
+			}
+		}
+		
+		// Return fallback
+		return $fallback_url;
 	}
 
 	public function settings_page_html() {
@@ -363,16 +464,6 @@ class Impact_Websites_Student_Management {
 				?>
 			</form>
 		</div>
-		<script>
-		jQuery(document).ready(function($) {
-			// Auto-fill empty URL fields with placeholder values on focus
-			$('#iw_post_register_redirect, #iw_post_login_subscriber_redirect, #iw_post_login_partner_redirect, #iw_post_login_norole_redirect, #iw_login_page_url, #iw_registration_page_url').on('focus', function() {
-				if ($(this).val() === '') {
-					$(this).val($(this).attr('placeholder'));
-				}
-			});
-		});
-		</script>
 		<?php
 	}
 
@@ -1618,7 +1709,7 @@ class Impact_Websites_Student_Management {
 		wp_set_auth_cookie( $user_id, false );
 		do_action( 'wp_login', $user->user_login, $user );
 
-		$redirect = ! empty( $options['post_register_redirect'] ) ? $options['post_register_redirect'] : home_url( '/' );
+		$redirect = $this->get_url_from_page_setting( $options['post_register_redirect'] ?? 0, home_url( '/' ) );
 		$redirect_url = wp_validate_redirect( $redirect, home_url( '/' ) );
 		wp_safe_redirect( $redirect_url );
 		exit;
@@ -1842,7 +1933,7 @@ class Impact_Websites_Student_Management {
 		$to = $email;
 		$subject = 'Welcome to IELTS Student Management - Your Account Details';
 		$options = get_option( self::OPTION_KEY, [] );
-		$login_url = ! empty( $options['login_page_url'] ) ? $options['login_page_url'] : wp_login_url();
+		$login_url = $this->get_url_from_page_setting( $options['login_page_url'] ?? 0, wp_login_url() );
 		
 		$message = "Hello {$first_name},\n\n";
 		$message .= "Your account has been created successfully!\n\n";
@@ -1907,7 +1998,7 @@ class Impact_Websites_Student_Management {
 		if ( is_user_logged_in() ) {
 			// If user is already logged in, redirect them to the intended destination
 			$options = get_option( self::OPTION_KEY, [] );
-			$default_redirect = ! empty( $options['post_register_redirect'] ) ? $options['post_register_redirect'] : home_url( '/' );
+			$default_redirect = $this->get_url_from_page_setting( $options['post_register_redirect'] ?? 0, home_url( '/' ) );
 			$redirect_to = isset( $_GET['redirect_to'] ) ? esc_url_raw( wp_unslash( $_GET['redirect_to'] ) ) : $default_redirect;
 			// Validate redirect to prevent open redirect vulnerabilities
 			$redirect_to = wp_validate_redirect( $redirect_to, home_url( '/' ) );
@@ -1916,7 +2007,7 @@ class Impact_Websites_Student_Management {
 		}
 
 		$options = get_option( self::OPTION_KEY, [] );
-		$default_redirect = ! empty( $options['post_register_redirect'] ) ? $options['post_register_redirect'] : home_url( '/' );
+		$default_redirect = $this->get_url_from_page_setting( $options['post_register_redirect'] ?? 0, home_url( '/' ) );
 		$redirect_to = isset( $_GET['redirect_to'] ) ? esc_url_raw( wp_unslash( $_GET['redirect_to'] ) ) : $default_redirect;
 		$lost_password_url = wp_lostpassword_url();
 
@@ -1963,10 +2054,6 @@ class Impact_Websites_Student_Management {
 						<td><input name="pwd" id="user_pass" class="iw-input" type="password" value="" size="20" required></td>
 					</tr>
 					<tr>
-						<th>Remember me</th>
-						<td><label><input name="rememberme" type="checkbox" value="forever"> Keep me signed in</label></td>
-					</tr>
-					<tr>
 						<td colspan="2" style="text-align:left;padding-top:10px;">
 							<input type="hidden" name="redirect_to" value="<?php echo esc_attr( $redirect_to ); ?>" />
 							<input type="submit" name="wp-submit" id="wp-submit" class="iw-submit" value="Log In" />
@@ -1989,7 +2076,7 @@ class Impact_Websites_Student_Management {
 	/* Handle failed login attempts - redirect to custom login page with error */
 	public function handle_login_failed( $username, $error ) {
 		$options = get_option( self::OPTION_KEY, [] );
-		$login_url = ! empty( $options['login_page_url'] ) ? $options['login_page_url'] : '';
+		$login_url = $this->get_url_from_page_setting( $options['login_page_url'] ?? 0, '' );
 		
 		if ( empty( $login_url ) ) {
 			return; // No custom login page configured, use default behavior
@@ -2012,7 +2099,7 @@ class Impact_Websites_Student_Management {
 	/* Handle authentication errors - keep errors within plugin */
 	public function handle_login_errors( $user, $username, $password ) {
 		$options = get_option( self::OPTION_KEY, [] );
-		$login_url = ! empty( $options['login_page_url'] ) ? $options['login_page_url'] : '';
+		$login_url = $this->get_url_from_page_setting( $options['login_page_url'] ?? 0, '' );
 		
 		if ( empty( $login_url ) ) {
 			return $user; // No custom login page configured, use default behavior
@@ -2047,13 +2134,13 @@ class Impact_Websites_Student_Management {
 			
 			// Check for partner admin role
 			if ( in_array( self::PARTNER_ROLE, $user->roles ) ) {
-				$partner_redirect = ! empty( $options['post_login_partner_redirect'] ) ? $options['post_login_partner_redirect'] : home_url( '/partner-dashboard/' );
+				$partner_redirect = $this->get_url_from_page_setting( $options['post_login_partner_redirect'] ?? 0, home_url( '/partner-dashboard/' ) );
 				return $partner_redirect;
 			}
 			
 			// Check for subscriber role
 			if ( in_array( 'subscriber', $user->roles ) ) {
-				$subscriber_redirect = ! empty( $options['post_login_subscriber_redirect'] ) ? $options['post_login_subscriber_redirect'] : '';
+				$subscriber_redirect = $this->get_url_from_page_setting( $options['post_login_subscriber_redirect'] ?? 0, '' );
 				if ( ! empty( $subscriber_redirect ) ) {
 					return $subscriber_redirect;
 				}
@@ -2061,7 +2148,7 @@ class Impact_Websites_Student_Management {
 			
 			// Check for users with no role (empty roles array)
 			if ( empty( $user->roles ) ) {
-				$norole_redirect = ! empty( $options['post_login_norole_redirect'] ) ? $options['post_login_norole_redirect'] : home_url( '/extend-my-membership/' );
+				$norole_redirect = $this->get_url_from_page_setting( $options['post_login_norole_redirect'] ?? 0, home_url( '/extend-my-membership/' ) );
 				return $norole_redirect;
 			}
 		}
@@ -2095,8 +2182,8 @@ class Impact_Websites_Student_Management {
 		}
 
 		$options = get_option( self::OPTION_KEY, [] );
-		$login_url = ! empty( $options['login_page_url'] ) ? $options['login_page_url'] : '';
-		$registration_url = ! empty( $options['registration_page_url'] ) ? $options['registration_page_url'] : '';
+		$login_url = $this->get_url_from_page_setting( $options['login_page_url'] ?? 0, '' );
+		$registration_url = $this->get_url_from_page_setting( $options['registration_page_url'] ?? 0, '' );
 
 		// If no login page configured, don't enforce
 		if ( empty( $login_url ) ) {
