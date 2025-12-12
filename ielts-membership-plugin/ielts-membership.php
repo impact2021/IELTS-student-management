@@ -565,6 +565,12 @@ class Impact_Websites_Student_Management {
 			wp_send_json_error( 'This user is not managed by a partner', 403 );
 		}
 
+		// Validate user exists
+		$user = get_userdata( $student_id );
+		if ( ! $user ) {
+			wp_send_json_error( 'Invalid user ID', 400 );
+		}
+		
 		// Set expiry to now (marks as expired)
 		update_user_meta( $student_id, self::META_USER_EXPIRY, time() );
 		
@@ -572,7 +578,6 @@ class Impact_Websites_Student_Management {
 		$this->remove_user_enrollments( $student_id );
 		
 		// Remove subscriber role (set to no role)
-		$user = new WP_User( $student_id );
 		$user->set_role( '' );
 
 		wp_send_json_success( 'revoked' );
@@ -1470,19 +1475,22 @@ class Impact_Websites_Student_Management {
 			$exp = intval( get_user_meta( $uid, self::META_USER_EXPIRY, true ) );
 			if ( $exp && $exp <= $now ) {
 				$manager_id = intval( get_user_meta( $uid, self::META_USER_MANAGER, true ) );
-				// Get user data before updating for notification
-				$user_data = get_userdata( $uid );
+				
+				// Get user data and validate user exists
+				$user = get_userdata( $uid );
+				if ( ! $user ) {
+					continue; // Skip if user was deleted
+				}
 				
 				// Remove LearnDash enrollments
 				$this->remove_user_enrollments( $uid );
 				
 				// Remove subscriber role (set to no role)
-				$user = new WP_User( $uid );
 				$user->set_role( '' );
 				
 				// Notify partner admin
 				if ( $manager_id ) {
-					$this->notify_partner_user_expired( $manager_id, $uid, $exp, $user_data );
+					$this->notify_partner_user_expired( $manager_id, $uid, $exp, $user );
 				}
 			}
 		}
