@@ -572,13 +572,8 @@ class Impact_Websites_Student_Management {
 			wp_send_json_error( 'User is not an active student', 403 );
 		}
 		
-		// If user doesn't have a manager set, assign current partner admin as manager
-		// This handles pre-existing users from before plugin installation
-		$mgr = intval( get_user_meta( $student_id, self::META_USER_MANAGER, true ) );
-		if ( ! $mgr ) {
-			$current_partner_id = get_current_user_id();
-			update_user_meta( $student_id, self::META_USER_MANAGER, $current_partner_id );
-		}
+		// Ensure user has manager meta assigned (handles pre-existing users)
+		$this->ensure_user_manager( $student_id );
 		
 		// Set expiry to now (marks as expired)
 		update_user_meta( $student_id, self::META_USER_EXPIRY, time() );
@@ -668,13 +663,8 @@ class Impact_Websites_Student_Management {
 			wp_send_json_error( 'User is not an active student', 403 );
 		}
 		
-		// If user doesn't have a manager set, assign current partner admin as manager
-		// This handles pre-existing users from before plugin installation
-		$mgr = intval( get_user_meta( $student_id, self::META_USER_MANAGER, true ) );
-		if ( ! $mgr ) {
-			$current_partner_id = get_current_user_id();
-			update_user_meta( $student_id, self::META_USER_MANAGER, $current_partner_id );
-		}
+		// Ensure user has manager meta assigned (handles pre-existing users)
+		$this->ensure_user_manager( $student_id );
 
 		// Convert date to timestamp (end of day)
 		$timestamp = strtotime( $expiry_date . ' 23:59:59' );
@@ -716,13 +706,8 @@ class Impact_Websites_Student_Management {
 			wp_send_json_error( 'User is already an active student', 403 );
 		}
 		
-		// If user doesn't have a manager set, assign current partner admin as manager
-		// This handles pre-existing users from before plugin installation
-		$mgr = intval( get_user_meta( $student_id, self::META_USER_MANAGER, true ) );
-		if ( ! $mgr ) {
-			$current_partner_id = get_current_user_id();
-			update_user_meta( $student_id, self::META_USER_MANAGER, $current_partner_id );
-		}
+		// Ensure user has manager meta assigned (handles pre-existing users)
+		$this->ensure_user_manager( $student_id );
 		
 		// Calculate new expiry
 		$new_expiry = time() + ( $days * DAY_IN_SECONDS );
@@ -736,6 +721,23 @@ class Impact_Websites_Student_Management {
 		$this->enroll_user_in_all_courses( $student_id );
 		
 		wp_send_json_success( 'Student re-enrolled successfully' );
+	}
+
+	/**
+	 * Ensure user has manager meta assigned (for pre-existing users)
+	 * 
+	 * If user doesn't have a manager set, assigns the current partner admin as manager.
+	 * This handles pre-existing users from before plugin installation.
+	 * 
+	 * @param int $user_id User ID to check and update
+	 * @return void
+	 */
+	private function ensure_user_manager( $user_id ) {
+		$mgr = intval( get_user_meta( $user_id, self::META_USER_MANAGER, true ) );
+		if ( ! $mgr ) {
+			$current_partner_id = get_current_user_id();
+			update_user_meta( $user_id, self::META_USER_MANAGER, $current_partner_id );
+		}
 	}
 
 	private function generate_code( $length = 8 ) {
