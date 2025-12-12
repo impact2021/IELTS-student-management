@@ -729,6 +729,10 @@ class Impact_Websites_Student_Management {
 	 * If user doesn't have a manager set, assigns the current partner admin as manager.
 	 * This handles pre-existing users from before plugin installation.
 	 * 
+	 * IMPORTANT: This method should only be called from AJAX handlers that have already
+	 * verified the current user has the CAP_MANAGE capability. It assumes the current
+	 * user is authorized to manage students.
+	 * 
 	 * @param int $user_id User ID to check and update
 	 * @return void
 	 */
