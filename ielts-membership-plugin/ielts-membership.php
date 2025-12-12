@@ -775,7 +775,13 @@ class Impact_Websites_Student_Management {
 		}
 
 		// Generate username from email (everything before @)
-		$username = sanitize_user( substr( $email, 0, strpos( $email, '@' ) ) );
+		$at_pos = strpos( $email, '@' );
+		if ( $at_pos === false || $at_pos === 0 ) {
+			// Fallback if email doesn't have @ or @ is at start
+			$username = sanitize_user( 'user' . wp_rand( 1000, 9999 ) );
+		} else {
+			$username = sanitize_user( substr( $email, 0, $at_pos ) );
+		}
 		
 		// Ensure username is unique
 		$base_username = $username;
@@ -785,8 +791,8 @@ class Impact_Websites_Student_Management {
 			$counter++;
 		}
 
-		// Generate random password
-		$password = wp_generate_password( 12, true, false );
+		// Generate random password with special characters for better security
+		$password = wp_generate_password( 16, true, true );
 
 		// Create the user
 		$user_id = wp_create_user( $username, $password, $email );
@@ -1268,7 +1274,12 @@ class Impact_Websites_Student_Management {
 					body:data
 				}).then(r=>r.json()).then(d=>{
 					if(d.success){
-						alert('User created successfully!\n\nUsername: ' + d.data.username + '\nEmail: ' + d.data.email + '\nExpiry: ' + d.data.expiry + '\n\nThe user will receive a welcome email with their login credentials.');
+						const msg = 'User created successfully!\n\n' +
+							'Username: ' + d.data.username + '\n' +
+							'Email: ' + d.data.email + '\n' +
+							'Expiry: ' + d.data.expiry + '\n\n' +
+							'A welcome email with login credentials has been sent to the user.';
+						alert(msg);
 						location.reload();
 					}else{
 						alert('Error creating user: '+(d.data||d));
@@ -1837,11 +1848,14 @@ class Impact_Websites_Student_Management {
 		$message .= "Your login details:\n";
 		$message .= "Username: {$username}\n";
 		$message .= "Email: {$email}\n";
-		$message .= "Password: {$password}\n\n";
+		$message .= "Temporary Password: {$password}\n\n";
 		$message .= "Login URL: {$login_url}\n\n";
 		$message .= "Your access expires on: " . $this->format_date( $expiry_ts ) . "\n\n";
 		$message .= "You have been enrolled in all available courses. Please log in to get started.\n\n";
-		$message .= "Important: Please keep your password secure and change it after your first login if desired.\n\n";
+		$message .= "IMPORTANT SECURITY NOTICE:\n";
+		$message .= "- This email contains your temporary password. Please delete this email after changing your password.\n";
+		$message .= "- We strongly recommend changing your password immediately after your first login.\n";
+		$message .= "- Keep your password secure and do not share it with anyone.\n\n";
 		$message .= "Regards,\nImpact Websites";
 		
 		wp_mail( $to, $subject, $message );
