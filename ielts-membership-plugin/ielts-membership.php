@@ -53,6 +53,7 @@ class Impact_Websites_Student_Management {
 	const META_USER_MANAGER = '_iw_user_manager';
 	const META_USER_EXPIRY = '_iw_user_expiry';
 	const META_EXPIRY_NOTICE_SENT = '_iw_expiry_notice_sent';
+	const META_LAST_LOGIN = '_iw_last_login';
 	const OPTION_KEY = 'iw_student_management_options';
 	const CRON_HOOK = 'iw_sm_daily_cron';
 	const AJAX_CREATE = 'iw_create_invite';
@@ -122,6 +123,9 @@ class Impact_Websites_Student_Management {
 		add_action( 'edit_user_profile', [ $this, 'show_expiry_field' ] );
 		add_action( 'personal_options_update', [ $this, 'save_expiry_field' ] );
 		add_action( 'edit_user_profile_update', [ $this, 'save_expiry_field' ] );
+		
+		// Track last login time
+		add_action( 'wp_login', [ $this, 'track_last_login' ], 10, 2 );
 	}
 	
 	/**
@@ -835,6 +839,8 @@ class Impact_Websites_Student_Management {
 		.iw-student-section { display:none; }
 		.iw-student-section.active { display:block; }
 		.iw-days-input { width:80px; padding:4px 8px; font-size:13px; margin-right:8px; }
+		.iw-search-box { margin:15px 0; }
+		.iw-search-box input { padding:8px; width:300px; font-size:14px; border:1px solid #ddd; border-radius:4px; }
 		</style>
 		<div id="iw-partner-dashboard">
 			<div class="iw-dashboard-section">
@@ -957,12 +963,15 @@ class Impact_Websites_Student_Management {
 
 				<!-- Active Students Section -->
 				<div id="iw-active-students" class="iw-student-section active">
-					<table class="widefat">
-						<thead><tr><th>Username</th><th>Email</th><th>Expires</th><th>Action</th></tr></thead>
+					<div class="iw-search-box">
+						<input type="text" id="iw-active-search" placeholder="Search by username or email..." />
+					</div>
+					<table class="widefat" id="iw-active-students-table">
+						<thead><tr><th>Username</th><th>Email</th><th>Last Login</th><th>Expires</th><th>Extended Access</th><th>Action</th></tr></thead>
 						<tbody>
 						<?php
 						if ( empty( $all_students ) ) {
-							echo '<tr><td colspan="4">No active students found.</td></tr>';
+							echo '<tr><td colspan="6">No active students found.</td></tr>';
 						} else {
 							foreach ( $all_students as $s ) {
 								$exp = intval( get_user_meta( $s->ID, self::META_USER_EXPIRY, true ) );
@@ -970,11 +979,18 @@ class Impact_Websites_Student_Management {
 								$exp_text = $exp ? $this->format_date( $exp ) : 'No expiry';
 								$student_id = intval( $s->ID );
 								$username = esc_html( $s->user_login );
-								echo '<tr id="iw-student-' . $student_id . '">';
+								$email = esc_html( $s->user_email );
+								
+								// Get last login
+								$last_login = intval( get_user_meta( $s->ID, self::META_LAST_LOGIN, true ) );
+								$last_login_text = $last_login ? $this->format_date( $last_login ) : 'Never';
+								
+								echo '<tr id="iw-student-' . $student_id . '" data-username="' . esc_attr( strtolower( $username ) ) . '" data-email="' . esc_attr( strtolower( $email ) ) . '">';
 								echo '<td>' . $username . '</td>';
-								echo '<td>' . esc_html( $s->user_email ) . '</td>';
+								echo '<td>' . $email . '</td>';
+								echo '<td>' . esc_html( $last_login_text ) . '</td>';
+								echo '<td><span class="iw-expiry-display">' . esc_html( $exp_text ) . '</span></td>';
 								echo '<td>';
-								echo '<span class="iw-expiry-display">' . esc_html( $exp_text ) . '</span> ';
 								echo '<input type="date" class="iw-expiry-input" id="iw-expiry-input-' . $student_id . '" data-student="' . $student_id . '" value="' . esc_attr( $exp_date_value ) . '" aria-label="Expiry date for ' . esc_attr( $username ) . '" />';
 								echo '<button class="button iw-update-expiry" data-student="' . $student_id . '" aria-label="Update expiry for ' . esc_attr( $username ) . '">Update</button>';
 								echo '</td>';
@@ -989,21 +1005,31 @@ class Impact_Websites_Student_Management {
 
 				<!-- Inactive Students Section -->
 				<div id="iw-inactive-students" class="iw-student-section">
-					<table class="widefat">
-						<thead><tr><th>Username</th><th>Email</th><th>Last Expiry</th><th>Action</th></tr></thead>
+					<div class="iw-search-box">
+						<input type="text" id="iw-inactive-search" placeholder="Search by username or email..." />
+					</div>
+					<table class="widefat" id="iw-inactive-students-table">
+						<thead><tr><th>Username</th><th>Email</th><th>Last Login</th><th>Last Expiry</th><th>How many additional days?</th></tr></thead>
 						<tbody>
 						<?php
 						if ( empty( $inactive_students ) ) {
-							echo '<tr><td colspan="4">No inactive students found.</td></tr>';
+							echo '<tr><td colspan="5">No inactive students found.</td></tr>';
 						} else {
 							foreach ( $inactive_students as $s ) {
 								$exp = intval( get_user_meta( $s->ID, self::META_USER_EXPIRY, true ) );
 								$exp_text = $exp ? $this->format_date( $exp ) : 'No expiry set';
 								$student_id = intval( $s->ID );
 								$username = esc_html( $s->user_login );
-								echo '<tr id="iw-inactive-student-' . $student_id . '">';
+								$email = esc_html( $s->user_email );
+								
+								// Get last login
+								$last_login = intval( get_user_meta( $s->ID, self::META_LAST_LOGIN, true ) );
+								$last_login_text = $last_login ? $this->format_date( $last_login ) : 'Never';
+								
+								echo '<tr id="iw-inactive-student-' . $student_id . '" data-username="' . esc_attr( strtolower( $username ) ) . '" data-email="' . esc_attr( strtolower( $email ) ) . '">';
 								echo '<td>' . $username . '</td>';
-								echo '<td>' . esc_html( $s->user_email ) . '</td>';
+								echo '<td>' . $email . '</td>';
+								echo '<td>' . esc_html( $last_login_text ) . '</td>';
 								echo '<td>' . esc_html( $exp_text ) . '</td>';
 								echo '<td>';
 								echo '<input type="number" class="iw-days-input" id="iw-days-input-' . $student_id . '" data-student="' . $student_id . '" value="' . intval( self::DEFAULT_REENROL_DAYS ) . '" min="1" placeholder="Days" aria-label="Days for ' . esc_attr( $username ) . '" />';
@@ -1211,6 +1237,37 @@ class Impact_Websites_Student_Management {
 					});
 				});
 			});
+
+			// Search functionality helper
+			function setupTableSearch(searchInputId, tableId) {
+				const searchInput = document.getElementById(searchInputId);
+				if (searchInput) {
+					let debounceTimer;
+					searchInput.addEventListener('input', function() {
+						clearTimeout(debounceTimer);
+						debounceTimer = setTimeout(function() {
+							const searchTerm = searchInput.value.toLowerCase();
+							const table = document.getElementById(tableId);
+							const rows = table.querySelectorAll('tbody tr');
+							
+							rows.forEach(function(row) {
+								const username = row.getAttribute('data-username') || '';
+								const email = row.getAttribute('data-email') || '';
+								
+								if (username.includes(searchTerm) || email.includes(searchTerm)) {
+									row.style.display = '';
+								} else {
+									row.style.display = 'none';
+								}
+							});
+						}, 250);
+					});
+				}
+			}
+
+			// Setup search for both tables
+			setupTableSearch('iw-active-search', 'iw-active-students-table');
+			setupTableSearch('iw-inactive-search', 'iw-inactive-students-table');
 		})();
 		</script>
 		<?php
@@ -1831,6 +1888,21 @@ class Impact_Websites_Student_Management {
 		$target = add_query_arg( 'redirect_to', rawurlencode( $current_url ), $login_url );
 		wp_safe_redirect( $target );
 		exit;
+	}
+
+	/**
+	 * Track last login time for users
+	 * 
+	 * Hooked to 'wp_login' action to record the timestamp when a user logs in.
+	 * This information is displayed in the partner dashboard to help partners
+	 * track student engagement.
+	 * 
+	 * @param string  $user_login Username (required by wp_login hook signature, not used)
+	 * @param WP_User $user       User object
+	 * @return void
+	 */
+	public function track_last_login( $user_login, $user ) {
+		update_user_meta( $user->ID, self::META_LAST_LOGIN, time() );
 	}
 
 	/**
