@@ -61,6 +61,7 @@ class Impact_Websites_Student_Management {
 	const AJAX_DELETE_CODE = 'iw_delete_code';
 	const AJAX_UPDATE_EXPIRY = 'iw_update_expiry';
 	const AJAX_REENROL = 'iw_reenrol_student';
+	const AJAX_CREATE_USER = 'iw_create_user_manually';
 	const DEFAULT_REENROL_DAYS = 30;
 	const NONCE_DASH = 'iw_dashboard_nonce';
 	const NONCE_REGISTER = 'iw_register_nonce';
@@ -84,6 +85,7 @@ class Impact_Websites_Student_Management {
 		add_action( 'wp_ajax_' . self::AJAX_DELETE_CODE, [ $this, 'ajax_delete_code' ] );
 		add_action( 'wp_ajax_' . self::AJAX_UPDATE_EXPIRY, [ $this, 'ajax_update_expiry' ] );
 		add_action( 'wp_ajax_' . self::AJAX_REENROL, [ $this, 'ajax_reenrol_student' ] );
+		add_action( 'wp_ajax_' . self::AJAX_CREATE_USER, [ $this, 'ajax_create_user_manually' ] );
 
 		// Shortcodes
 		add_shortcode( 'iw_partner_dashboard', [ $this, 'shortcode_partner_dashboard' ] );
@@ -727,6 +729,110 @@ class Impact_Websites_Student_Management {
 		wp_send_json_success( 'Student re-enrolled successfully' );
 	}
 
+	/* AJAX: create user manually without invite code */
+	public function ajax_create_user_manually() {
+		if ( ! is_user_logged_in() || ! current_user_can( self::CAP_MANAGE ) ) {
+			wp_send_json_error( 'Unauthorized', 403 );
+		}
+		if ( empty( $_POST['iw_dash_nonce'] ) || ! wp_verify_nonce( wp_unslash( $_POST['iw_dash_nonce'] ), self::NONCE_DASH ) ) {
+			wp_send_json_error( 'Invalid request', 400 );
+		}
+
+		$email = isset( $_POST['email'] ) ? sanitize_email( wp_unslash( $_POST['email'] ) ) : '';
+		$first_name = isset( $_POST['first_name'] ) ? sanitize_text_field( wp_unslash( $_POST['first_name'] ) ) : '';
+		$last_name = isset( $_POST['last_name'] ) ? sanitize_text_field( wp_unslash( $_POST['last_name'] ) ) : '';
+		$days = isset( $_POST['days'] ) ? intval( $_POST['days'] ) : 0;
+
+		// Validate required fields
+		if ( empty( $email ) || empty( $first_name ) || empty( $last_name ) ) {
+			wp_send_json_error( 'Email, first name, and last name are required', 400 );
+		}
+
+		// Validate email format
+		if ( ! is_email( $email ) ) {
+			wp_send_json_error( 'Invalid email address', 400 );
+		}
+
+		// Check if email already exists
+		if ( email_exists( $email ) ) {
+			wp_send_json_error( 'A user with this email address already exists', 400 );
+		}
+
+		// Default to 30 days if not specified
+		if ( ! $days ) {
+			$options = get_option( self::OPTION_KEY, [] );
+			$days = intval( $options['default_days'] ?? 30 );
+		}
+
+		// Check partner limit (global pool)
+		$options = get_option( self::OPTION_KEY, [] );
+		$global_limit = intval( $options['default_partner_limit'] ?? 0 );
+		if ( $global_limit > 0 ) {
+			$active_count = $this->count_active_managed_users( null );
+			if ( $active_count >= $global_limit ) {
+				wp_send_json_error( 'The partner pool has reached its active account limit. Cannot create new user.', 403 );
+			}
+		}
+
+		// Generate username from email (everything before @)
+		$at_pos = strpos( $email, '@' );
+		if ( $at_pos === false || $at_pos === 0 ) {
+			// Fallback if email doesn't have @ or @ is at start
+			// Use first 8 chars of a random password for unpredictable username
+			$username = sanitize_user( 'user_' . substr( wp_generate_password( 8, false, false ), 0, 8 ) );
+		} else {
+			$username = sanitize_user( substr( $email, 0, $at_pos ) );
+		}
+		
+		// Ensure username is unique
+		$base_username = $username;
+		$counter = 1;
+		while ( username_exists( $username ) ) {
+			$username = $base_username . $counter;
+			$counter++;
+		}
+
+		// Generate random password with special characters for better security
+		$password = wp_generate_password( 16, true, true );
+
+		// Create the user
+		$user_id = wp_create_user( $username, $password, $email );
+		if ( is_wp_error( $user_id ) ) {
+			wp_send_json_error( 'Could not create user: ' . $user_id->get_error_message(), 500 );
+		}
+
+		// Set user role
+		$user = new WP_User( $user_id );
+		$user->set_role( 'subscriber' );
+
+		// Save first name and last name
+		update_user_meta( $user_id, 'first_name', $first_name );
+		update_user_meta( $user_id, 'last_name', $last_name );
+
+		// Set expiry and manager
+		$partner_id = get_current_user_id();
+		$expiry_ts = time() + ( $days * DAY_IN_SECONDS );
+		update_user_meta( $user_id, self::META_USER_MANAGER, $partner_id );
+		update_user_meta( $user_id, self::META_USER_EXPIRY, $expiry_ts );
+		delete_user_meta( $user_id, self::META_EXPIRY_NOTICE_SENT );
+
+		// Enroll in all LearnDash courses
+		$this->enroll_user_in_all_courses( $user_id );
+
+		// Send welcome email with credentials
+		$this->send_welcome_email( $user_id, $username, $password, $email, $first_name, $expiry_ts );
+
+		// Notify partner admin
+		$this->notify_partner_manual_user_created( $partner_id, $user_id, $username, $email, $expiry_ts );
+
+		wp_send_json_success( [
+			'message' => 'User created successfully',
+			'username' => $username,
+			'email' => $email,
+			'expiry' => $this->format_date( $expiry_ts )
+		] );
+	}
+
 	/**
 	 * Ensure user has manager meta assigned (for pre-existing users)
 	 * 
@@ -871,6 +977,45 @@ class Impact_Websites_Student_Management {
 					<tr>
 						<td colspan="2" style="text-align:center;">
 							<button type="submit" class="button button-primary">Create codes</button>
+						</td>
+					</tr>
+				</table>
+			</form>
+			</div>
+
+			<div class="iw-dashboard-section">
+				<h2>Create user manually</h2>
+				<p>Create a new user account directly without using an invite code. The user will receive an email with their login credentials.</p>
+				<form id="iw-create-user-form">
+					<input type="hidden" name="iw_dash_nonce" value="<?php echo esc_attr( $dash_nonce ); ?>" />
+					<table class="iw-form-table">
+					<tr>
+						<th>Email Address</th>
+						<td><input type="email" name="email" required placeholder="user@example.com" /></td>
+					</tr>
+					<tr>
+						<th>First Name</th>
+						<td><input type="text" name="first_name" required placeholder="John" /></td>
+					</tr>
+					<tr>
+						<th>Last Name</th>
+						<td><input type="text" name="last_name" required placeholder="Doe" /></td>
+					</tr>
+					<tr>
+						<th>How many days' access?</th>
+						<td>
+							<select name="days">
+								<option value="30">30</option>
+								<option value="60">60</option>
+								<option value="90">90</option>
+								<option value="180">180</option>
+								<option value="365">365</option>
+							</select>
+						</td>
+					</tr>
+					<tr>
+						<td colspan="2" style="text-align:center;">
+							<button type="submit" class="button button-primary">Create User</button>
 						</td>
 					</tr>
 				</table>
@@ -1108,6 +1253,44 @@ class Impact_Websites_Student_Management {
 					}else{
 						alert('Error creating codes: '+(d.data||d));
 					}
+				});
+			});
+
+			// Create user manually form
+			const userForm = document.getElementById('iw-create-user-form');
+			userForm.addEventListener('submit', function(e){
+				e.preventDefault();
+				const data = new FormData(userForm);
+				data.append('action','<?php echo self::AJAX_CREATE_USER; ?>');
+				
+				// Disable submit button during processing
+				const submitBtn = userForm.querySelector('button[type="submit"]');
+				const originalText = submitBtn.textContent;
+				submitBtn.disabled = true;
+				submitBtn.textContent = 'Creating...';
+				
+				fetch('<?php echo admin_url( 'admin-ajax.php' ); ?>', {
+					method:'POST',
+					credentials:'same-origin',
+					body:data
+				}).then(r=>r.json()).then(d=>{
+					if(d.success){
+						const msg = 'User created successfully!\n\n' +
+							'Username: ' + d.data.username + '\n' +
+							'Email: ' + d.data.email + '\n' +
+							'Expiry: ' + d.data.expiry + '\n\n' +
+							'A welcome email with login credentials has been sent to the user.';
+						alert(msg);
+						location.reload();
+					}else{
+						alert('Error creating user: '+(d.data||d));
+						submitBtn.disabled = false;
+						submitBtn.textContent = originalText;
+					}
+				}).catch(err=>{
+					alert('Network error. Please try again.');
+					submitBtn.disabled = false;
+					submitBtn.textContent = originalText;
 				});
 			});
 
@@ -1650,6 +1833,55 @@ class Impact_Websites_Student_Management {
 		$subject = sprintf( 'User expired: %s', $user_identifier );
 		$message = "Hello " . $partner->display_name . ",\n\n";
 		$message .= "The user {$user_identifier} expired on " . $this->format_date( $expiry_ts ) . " and has been removed/updated according to site policy.\n\n";
+		$message .= "Regards,\nImpact Websites";
+		wp_mail( $to, $subject, $message );
+	}
+
+	/* Send welcome email to manually created user with login credentials */
+	private function send_welcome_email( $user_id, $username, $password, $email, $first_name, $expiry_ts ) {
+		$to = $email;
+		$subject = 'Welcome to IELTS Student Management - Your Account Details';
+		$options = get_option( self::OPTION_KEY, [] );
+		$login_url = ! empty( $options['login_page_url'] ) ? $options['login_page_url'] : wp_login_url();
+		
+		$message = "Hello {$first_name},\n\n";
+		$message .= "Your account has been created successfully!\n\n";
+		$message .= "Your login details:\n";
+		$message .= "Username: {$username}\n";
+		$message .= "Email: {$email}\n";
+		$message .= "Temporary Password: {$password}\n\n";
+		$message .= "Login URL: {$login_url}\n\n";
+		$message .= "Your access expires on: " . $this->format_date( $expiry_ts ) . "\n\n";
+		$message .= "You have been enrolled in all available courses. Please log in to get started.\n\n";
+		$message .= "IMPORTANT SECURITY NOTICE:\n";
+		$message .= "- This email contains your temporary password. Please delete this email after changing your password.\n";
+		$message .= "- We strongly recommend changing your password immediately after your first login.\n";
+		$message .= "- Keep your password secure and do not share it with anyone.\n\n";
+		$message .= "Regards,\nImpact Websites";
+		
+		wp_mail( $to, $subject, $message );
+	}
+
+	/* Notify partner when user is manually created */
+	private function notify_partner_manual_user_created( $partner_id, $user_id, $username, $email, $expiry_ts ) {
+		$partner = get_userdata( $partner_id );
+		$user = get_userdata( $user_id );
+		if ( ! $partner || ! $user ) {
+			return;
+		}
+		$to = $partner->user_email;
+		if ( empty( $to ) ) {
+			return;
+		}
+		$subject = sprintf( 'New user created: %s', $username );
+		$expiry_text = $this->format_date( $expiry_ts );
+		$message = "Hello " . $partner->display_name . ",\n\n";
+		$message .= "You have successfully created a new user account.\n\n";
+		$message .= "User details:\n";
+		$message .= "Username: {$username}\n";
+		$message .= "Email: {$email}\n";
+		$message .= "Expires: {$expiry_text}\n\n";
+		$message .= "The user has been enrolled in all courses and will receive a welcome email with their login credentials.\n\n";
 		$message .= "Regards,\nImpact Websites";
 		wp_mail( $to, $subject, $message );
 	}

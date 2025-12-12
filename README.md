@@ -142,12 +142,24 @@ After activation, you'll see a **Partnership area** menu in the WordPress admin 
    - Click "Create codes"
    - Copy the generated codes to share with students
 
-3. **Monitor Students**:
+3. **Create Users Manually** (New Feature):
+   - Enter user's email address, first name, and last name
+   - Select days of access (30, 60, 90, 180, or 365 days)
+   - Click "Create User"
+   - System automatically:
+     - Generates a username from the email address
+     - Creates a secure random password
+     - Enrolls user in ALL LearnDash courses (if slots available)
+     - Sends welcome email to user with login credentials
+     - Sends confirmation email to partner admin
+   - Use this feature to quickly add users without requiring invite codes
+
+4. **Monitor Students**:
    - View all active students in the global pool
    - See username, email, and expiration date
    - Revoke access for any student if needed (removes LearnDash enrollments immediately)
 
-4. **Track Invite Usage**:
+5. **Track Invite Usage**:
    - See all invite codes (used and available)
    - View who used each code and when
    - All partner admins see the same invites (shared pool)
@@ -181,9 +193,12 @@ After activation, you'll see a **Partnership area** menu in the WordPress admin 
 
 ### `[iw_partner_dashboard]`
 Displays the partner dashboard with:
-- Form to create invite codes
+- Form to create invite codes (1-10 codes at once)
+- Form to manually create new users (without invite codes)
 - Table of all invite codes (used/available)
 - List of active students with ability to revoke
+- Search functionality for students
+- Student management options (re-enroll, update expiry)
 
 **Access**: Requires `manage_partner_invites` capability (administrator, partner_admin, or impact_manager role)
 
