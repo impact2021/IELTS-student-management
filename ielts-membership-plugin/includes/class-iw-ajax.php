@@ -451,6 +451,10 @@ class IW_AJAX {
     
     /**
      * Get courses for a specific group
+     * 
+     * Note: This method is duplicated from the main plugin class by design,
+     * as this AJAX handler class operates independently and doesn't have
+     * direct access to the main plugin's private methods.
      */
     private function get_courses_for_group($group_id) {
         // If 'all', return all courses
@@ -472,6 +476,10 @@ class IW_AJAX {
 
     /**
      * Enroll user in courses for a specific group
+     * 
+     * Note: This method is duplicated from the main plugin class by design,
+     * as this AJAX handler class operates independently and doesn't have
+     * direct access to the main plugin's private methods.
      */
     private function enroll_user_in_group_courses($user_id, $group_id = 'all') {
         $course_ids = $this->get_courses_for_group($group_id);
@@ -501,6 +509,10 @@ class IW_AJAX {
     
     /**
      * Notify partner when membership is extended
+     * 
+     * Note: This method is duplicated from the main plugin class by design,
+     * as this AJAX handler class operates independently and doesn't have
+     * direct access to the main plugin's private methods.
      */
     private function notify_partner_membership_extended($partner_id, $user_id, $code, $new_expiry) {
         $partner = get_userdata($partner_id);
