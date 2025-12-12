@@ -1022,7 +1022,7 @@ class Impact_Websites_Student_Management {
 		.iw-form-table { width:100%; border-collapse:collapse; margin-bottom:1.5em; }
 		.iw-form-table td, .iw-form-table th { padding:12px; border:1px solid #ddd; }
 		.iw-form-table th { background:#f8f9fa; font-weight:600; width:50%; }
-		.iw-form-table input[type="number"], .iw-form-table select { width:100%; padding:8px; }
+		.iw-form-table input[type="text"], .iw-form-table input[type="email"], .iw-form-table input[type="number"], .iw-form-table select { width:100%; padding:12px; box-sizing:border-box; }
 		.iw-tabs { margin:20px 0 10px; border-bottom:1px solid #ccc; }
 		.iw-tabs button { background:none; border:none; padding:10px 20px; cursor:pointer; font-size:14px; border-bottom:2px solid transparent; margin-bottom:-1px; }
 		.iw-tabs button.active { border-bottom-color:#0073aa; color:#0073aa; font-weight:bold; }
@@ -1038,6 +1038,7 @@ class Impact_Websites_Student_Management {
 		.iw-days-input { width:80px; padding:4px 8px; font-size:13px; margin-right:8px; }
 		.iw-search-box { margin:15px 0; }
 		.iw-search-box input { padding:8px; width:300px; font-size:14px; border:1px solid #ddd; border-radius:4px; }
+		#iw-active-students-table td, #iw-active-students-table th, #iw-inactive-students-table td, #iw-inactive-students-table th { padding:8px; }
 		</style>
 		<div id="iw-partner-dashboard">
 			<div class="iw-dashboard-section">
@@ -1203,11 +1204,11 @@ class Impact_Websites_Student_Management {
 						<input type="text" id="iw-active-search" placeholder="Search by name or email..." />
 					</div>
 					<table class="widefat" id="iw-active-students-table">
-						<thead><tr><th>First Name</th><th>Last Name</th><th>Email</th><th>Last Login</th><th>Expires</th><th>Extended Access</th><th>Action</th></tr></thead>
+						<thead><tr><th>Name</th><th>Email</th><th>Last Login</th><th>Expires</th><th>Extended Access</th><th>Action</th></tr></thead>
 						<tbody>
 						<?php
 						if ( empty( $all_students ) ) {
-							echo '<tr><td colspan="7">No active students found.</td></tr>';
+							echo '<tr><td colspan="6">No active students found.</td></tr>';
 						} else {
 							foreach ( $all_students as $s ) {
 								$exp = intval( get_user_meta( $s->ID, self::META_USER_EXPIRY, true ) );
@@ -1227,8 +1228,7 @@ class Impact_Websites_Student_Management {
 								$last_login_text = $last_login ? $this->format_date( $last_login ) : 'Never';
 								
 								echo '<tr id="iw-student-' . $student_id . '" data-firstname="' . esc_attr( strtolower( $first_name ) ) . '" data-lastname="' . esc_attr( strtolower( $last_name ) ) . '" data-email="' . esc_attr( strtolower( $email ) ) . '">';
-								echo '<td>' . ( $first_name ?: '—' ) . '</td>';
-								echo '<td>' . ( $last_name ?: '—' ) . '</td>';
+								echo '<td>' . ( $full_name !== $email ? $full_name : '—' ) . '</td>';
 								echo '<td>' . $email . '</td>';
 								echo '<td>' . esc_html( $last_login_text ) . '</td>';
 								echo '<td><span class="iw-expiry-display">' . esc_html( $exp_text ) . '</span></td>';
@@ -1251,11 +1251,11 @@ class Impact_Websites_Student_Management {
 						<input type="text" id="iw-inactive-search" placeholder="Search by name or email..." />
 					</div>
 					<table class="widefat" id="iw-inactive-students-table">
-						<thead><tr><th>First Name</th><th>Last Name</th><th>Email</th><th>Last Login</th><th>Last Expiry</th><th>How many additional days?</th></tr></thead>
+						<thead><tr><th>Name</th><th>Email</th><th>Last Login</th><th>Last Expiry</th><th>How many additional days?</th></tr></thead>
 						<tbody>
 						<?php
 						if ( empty( $inactive_students ) ) {
-							echo '<tr><td colspan="6">No inactive students found.</td></tr>';
+							echo '<tr><td colspan="5">No inactive students found.</td></tr>';
 						} else {
 							foreach ( $inactive_students as $s ) {
 								$exp = intval( get_user_meta( $s->ID, self::META_USER_EXPIRY, true ) );
@@ -1274,8 +1274,7 @@ class Impact_Websites_Student_Management {
 								$last_login_text = $last_login ? $this->format_date( $last_login ) : 'Never';
 								
 								echo '<tr id="iw-inactive-student-' . $student_id . '" data-firstname="' . esc_attr( strtolower( $first_name ) ) . '" data-lastname="' . esc_attr( strtolower( $last_name ) ) . '" data-email="' . esc_attr( strtolower( $email ) ) . '">';
-								echo '<td>' . ( $first_name ?: '—' ) . '</td>';
-								echo '<td>' . ( $last_name ?: '—' ) . '</td>';
+								echo '<td>' . ( $full_name !== $email ? $full_name : '—' ) . '</td>';
 								echo '<td>' . $email . '</td>';
 								echo '<td>' . esc_html( $last_login_text ) . '</td>';
 								echo '<td>' . esc_html( $exp_text ) . '</td>';
