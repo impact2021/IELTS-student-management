@@ -560,15 +560,24 @@ class Impact_Websites_Student_Management {
 		if ( ! $student_id ) {
 			wp_send_json_error( 'Missing student ID', 400 );
 		}
-		$mgr = intval( get_user_meta( $student_id, self::META_USER_MANAGER, true ) );
-		if ( ! $mgr ) {
-			wp_send_json_error( 'This user is not managed by a partner', 403 );
-		}
 
 		// Validate user exists
 		$user = get_userdata( $student_id );
 		if ( ! $user ) {
 			wp_send_json_error( 'Invalid user ID', 400 );
+		}
+		
+		// Check if user is a subscriber (active student)
+		if ( ! in_array( 'subscriber', $user->roles ) ) {
+			wp_send_json_error( 'User is not an active student', 403 );
+		}
+		
+		// If user doesn't have a manager set, assign current partner admin as manager
+		// This handles pre-existing users from before plugin installation
+		$mgr = intval( get_user_meta( $student_id, self::META_USER_MANAGER, true ) );
+		if ( ! $mgr ) {
+			$current_partner_id = get_current_user_id();
+			update_user_meta( $student_id, self::META_USER_MANAGER, $current_partner_id );
 		}
 		
 		// Set expiry to now (marks as expired)
@@ -654,10 +663,17 @@ class Impact_Websites_Student_Management {
 			wp_send_json_error( 'Invalid user', 400 );
 		}
 
-		// Verify the student is managed by a partner (part of the global pool)
+		// Check if user is a subscriber (active student)
+		if ( ! in_array( 'subscriber', $user->roles ) ) {
+			wp_send_json_error( 'User is not an active student', 403 );
+		}
+		
+		// If user doesn't have a manager set, assign current partner admin as manager
+		// This handles pre-existing users from before plugin installation
 		$mgr = intval( get_user_meta( $student_id, self::META_USER_MANAGER, true ) );
 		if ( ! $mgr ) {
-			wp_send_json_error( 'This user is not managed by a partner', 403 );
+			$current_partner_id = get_current_user_id();
+			update_user_meta( $student_id, self::META_USER_MANAGER, $current_partner_id );
 		}
 
 		// Convert date to timestamp (end of day)
@@ -695,10 +711,17 @@ class Impact_Websites_Student_Management {
 			wp_send_json_error( 'Invalid user', 400 );
 		}
 		
-		// Verify the student was managed by a partner (part of the global pool)
+		// Check if user is already active (subscriber)
+		if ( in_array( 'subscriber', $user->roles ) ) {
+			wp_send_json_error( 'User is already an active student', 403 );
+		}
+		
+		// If user doesn't have a manager set, assign current partner admin as manager
+		// This handles pre-existing users from before plugin installation
 		$mgr = intval( get_user_meta( $student_id, self::META_USER_MANAGER, true ) );
 		if ( ! $mgr ) {
-			wp_send_json_error( 'This user was not managed by a partner', 403 );
+			$current_partner_id = get_current_user_id();
+			update_user_meta( $student_id, self::META_USER_MANAGER, $current_partner_id );
 		}
 		
 		// Calculate new expiry
