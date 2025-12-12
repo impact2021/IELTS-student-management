@@ -565,10 +565,15 @@ class Impact_Websites_Student_Management {
 			wp_send_json_error( 'This user is not managed by a partner', 403 );
 		}
 
+		// Set expiry to now (marks as expired)
 		update_user_meta( $student_id, self::META_USER_EXPIRY, time() );
+		
+		// Remove all LearnDash course enrollments
 		$this->remove_user_enrollments( $student_id );
-		// Remove role by setting to empty string (no role)
-		wp_update_user( [ 'ID' => $student_id, 'role' => '' ] );
+		
+		// Remove subscriber role (set to no role)
+		$user = new WP_User( $student_id );
+		$user->set_role( '' );
 
 		wp_send_json_success( 'revoked' );
 	}
@@ -1471,8 +1476,9 @@ class Impact_Websites_Student_Management {
 				// Remove LearnDash enrollments
 				$this->remove_user_enrollments( $uid );
 				
-				// Set role to none (empty string)
-				wp_update_user( [ 'ID' => $uid, 'role' => '' ] );
+				// Remove subscriber role (set to no role)
+				$user = new WP_User( $uid );
+				$user->set_role( '' );
 				
 				// Notify partner admin
 				if ( $manager_id ) {
