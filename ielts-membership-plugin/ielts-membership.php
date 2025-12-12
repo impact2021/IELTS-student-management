@@ -1892,6 +1892,14 @@ class Impact_Websites_Student_Management {
 
 	/**
 	 * Track last login time for users
+	 * 
+	 * Hooked to 'wp_login' action to record the timestamp when a user logs in.
+	 * This information is displayed in the partner dashboard to help partners
+	 * track student engagement.
+	 * 
+	 * @param string  $user_login Username (required by wp_login hook signature, not used)
+	 * @param WP_User $user       User object
+	 * @return void
 	 */
 	public function track_last_login( $user_login, $user ) {
 		update_user_meta( $user->ID, self::META_LAST_LOGIN, time() );
