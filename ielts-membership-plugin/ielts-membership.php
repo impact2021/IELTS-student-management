@@ -982,6 +982,9 @@ class Impact_Websites_Student_Management {
 								$last_name = esc_html( get_user_meta( $s->ID, 'last_name', true ) );
 								$email = esc_html( $s->user_email );
 								$full_name = trim( $first_name . ' ' . $last_name );
+								if ( empty( $full_name ) ) {
+									$full_name = $email;
+								}
 								
 								// Get last login
 								$last_login = intval( get_user_meta( $s->ID, self::META_LAST_LOGIN, true ) );
@@ -1026,6 +1029,9 @@ class Impact_Websites_Student_Management {
 								$last_name = esc_html( get_user_meta( $s->ID, 'last_name', true ) );
 								$email = esc_html( $s->user_email );
 								$full_name = trim( $first_name . ' ' . $last_name );
+								if ( empty( $full_name ) ) {
+									$full_name = $email;
+								}
 								
 								// Get last login
 								$last_login = intval( get_user_meta( $s->ID, self::META_LAST_LOGIN, true ) );
