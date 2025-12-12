@@ -181,10 +181,54 @@ class IW_AJAX {
         $secure = is_ssl();
         setcookie('iw_token', '', time() - 3600, '/', '', $secure, true);
         
+        // Get logout redirect URL from settings
+        $options = get_option('iw_student_management_options', array());
+        $logout_redirect = $this->get_logout_url($options);
+        
         wp_send_json_success(array(
             'message' => 'Logged out successfully',
-            'redirect' => home_url('/login/')
+            'redirect' => $logout_redirect
         ));
+    }
+    
+    /**
+     * Get logout redirect URL from page ID setting
+     * 
+     * @param array $options Plugin options
+     * @return string The logout redirect URL
+     */
+    private function get_logout_url($options) {
+        $page_id_or_url = isset($options['logout_redirect']) ? $options['logout_redirect'] : 0;
+        
+        // If it's already a URL string (legacy), return it
+        if (is_string($page_id_or_url) && !empty($page_id_or_url)) {
+            return $page_id_or_url;
+        }
+        
+        // If it's a page ID, get the permalink
+        $page_id = intval($page_id_or_url);
+        if ($page_id > 0) {
+            $url = get_permalink($page_id);
+            if ($url && !is_wp_error($url)) {
+                return $url;
+            }
+        }
+        
+        // Fallback to login page or home
+        $login_page_id = isset($options['login_page_url']) ? $options['login_page_url'] : 0;
+        if (is_string($login_page_id) && !empty($login_page_id)) {
+            return $login_page_id;
+        }
+        
+        $login_page_id = intval($login_page_id);
+        if ($login_page_id > 0) {
+            $url = get_permalink($login_page_id);
+            if ($url && !is_wp_error($url)) {
+                return $url;
+            }
+        }
+        
+        return home_url('/login/');
     }
     
     /**
