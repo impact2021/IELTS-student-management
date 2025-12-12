@@ -1238,47 +1238,36 @@ class Impact_Websites_Student_Management {
 				});
 			});
 
-			// Search functionality for Active students table
-			const activeSearchInput = document.getElementById('iw-active-search');
-			if (activeSearchInput) {
-				activeSearchInput.addEventListener('keyup', function() {
-					const searchTerm = this.value.toLowerCase();
-					const table = document.getElementById('iw-active-students-table');
-					const rows = table.querySelectorAll('tbody tr');
-					
-					rows.forEach(function(row) {
-						const username = row.getAttribute('data-username') || '';
-						const email = row.getAttribute('data-email') || '';
-						
-						if (username.includes(searchTerm) || email.includes(searchTerm)) {
-							row.style.display = '';
-						} else {
-							row.style.display = 'none';
-						}
+			// Search functionality helper
+			function setupTableSearch(searchInputId, tableId) {
+				const searchInput = document.getElementById(searchInputId);
+				if (searchInput) {
+					let debounceTimer;
+					searchInput.addEventListener('input', function() {
+						clearTimeout(debounceTimer);
+						debounceTimer = setTimeout(function() {
+							const searchTerm = searchInput.value.toLowerCase();
+							const table = document.getElementById(tableId);
+							const rows = table.querySelectorAll('tbody tr');
+							
+							rows.forEach(function(row) {
+								const username = row.getAttribute('data-username') || '';
+								const email = row.getAttribute('data-email') || '';
+								
+								if (username.includes(searchTerm) || email.includes(searchTerm)) {
+									row.style.display = '';
+								} else {
+									row.style.display = 'none';
+								}
+							});
+						}, 250);
 					});
-				});
+				}
 			}
 
-			// Search functionality for Inactive students table
-			const inactiveSearchInput = document.getElementById('iw-inactive-search');
-			if (inactiveSearchInput) {
-				inactiveSearchInput.addEventListener('keyup', function() {
-					const searchTerm = this.value.toLowerCase();
-					const table = document.getElementById('iw-inactive-students-table');
-					const rows = table.querySelectorAll('tbody tr');
-					
-					rows.forEach(function(row) {
-						const username = row.getAttribute('data-username') || '';
-						const email = row.getAttribute('data-email') || '';
-						
-						if (username.includes(searchTerm) || email.includes(searchTerm)) {
-							row.style.display = '';
-						} else {
-							row.style.display = 'none';
-						}
-					});
-				});
-			}
+			// Setup search for both tables
+			setupTableSearch('iw-active-search', 'iw-active-students-table');
+			setupTableSearch('iw-inactive-search', 'iw-inactive-students-table');
 		})();
 		</script>
 		<?php
