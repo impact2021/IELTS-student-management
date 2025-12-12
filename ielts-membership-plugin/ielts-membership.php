@@ -60,6 +60,7 @@ class Impact_Websites_Student_Management {
 	const AJAX_DELETE_CODE = 'iw_delete_code';
 	const AJAX_UPDATE_EXPIRY = 'iw_update_expiry';
 	const AJAX_REENROL = 'iw_reenrol_student';
+	const DEFAULT_REENROL_DAYS = 30;
 	const NONCE_DASH = 'iw_dashboard_nonce';
 	const NONCE_REGISTER = 'iw_register_nonce';
 	const PARTNER_ROLE = 'partner_admin';
@@ -749,12 +750,20 @@ class Impact_Websites_Student_Management {
 		$all_students = $users; // All subscribers are included in the list
 
 		// Get inactive students (users who were previously managed but are no longer subscribers)
-		$all_users = get_users( [ 'fields' => 'all_with_meta' ] );
+		// Use meta_query to efficiently filter users with partner manager
+		$all_users = get_users( [
+			'fields' => 'all_with_meta',
+			'meta_query' => [
+				[
+					'key'     => self::META_USER_MANAGER,
+					'compare' => 'EXISTS',
+				],
+			],
+		] );
 		$inactive_students = [];
 		foreach ( $all_users as $u ) {
-			// Check if user was managed by a partner
-			$mgr = intval( get_user_meta( $u->ID, self::META_USER_MANAGER, true ) );
-			if ( $mgr && ! in_array( 'subscriber', $u->roles ) ) {
+			// Only include users who are no longer subscribers
+			if ( ! in_array( 'subscriber', $u->roles ) ) {
 				$inactive_students[] = $u;
 			}
 		}
@@ -958,7 +967,7 @@ class Impact_Websites_Student_Management {
 								echo '<td>' . esc_html( $s->user_email ) . '</td>';
 								echo '<td>' . esc_html( $exp_text ) . '</td>';
 								echo '<td>';
-								echo '<input type="number" class="iw-days-input" id="iw-days-input-' . $student_id . '" data-student="' . $student_id . '" value="30" min="1" placeholder="Days" aria-label="Days for ' . esc_attr( $username ) . '" />';
+								echo '<input type="number" class="iw-days-input" id="iw-days-input-' . $student_id . '" data-student="' . $student_id . '" value="' . intval( self::DEFAULT_REENROL_DAYS ) . '" min="1" placeholder="Days" aria-label="Days for ' . esc_attr( $username ) . '" />';
 								echo '<button class="button iw-reenrol" data-student="' . $student_id . '" aria-label="Re-enrol ' . esc_attr( $username ) . '">Re-enrol</button>';
 								echo '</td>';
 								echo '</tr>';

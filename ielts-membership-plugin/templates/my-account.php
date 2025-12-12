@@ -13,7 +13,15 @@ $is_expired = ($expiry_ts && $expiry_ts <= $now);
 ?>
 
 <style>
-.iw-table { width:100%; border-collapse:collapse; margin-bottom:1em; font-family: Arial, sans-serif; border-radius:8px; overflow:hidden; border:1px solid #e6e6e6; }
+.iw-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 1em;
+    font-family: Arial, sans-serif;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #e6e6e6;
+}
 .iw-table thead th { background:#f8f9fa; color:#333333; padding:14px; text-align:left; font-size:16px; border:1px solid #e6e6e6; }
 .iw-table td, .iw-table th { padding:12px; border:1px solid #e6e6e6; vertical-align:middle; }
 .iw-table td:nth-child(even) { background:#f7f7f7; }
