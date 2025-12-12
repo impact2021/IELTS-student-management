@@ -964,35 +964,41 @@ class Impact_Websites_Student_Management {
 				<!-- Active Students Section -->
 				<div id="iw-active-students" class="iw-student-section active">
 					<div class="iw-search-box">
-						<input type="text" id="iw-active-search" placeholder="Search by username or email..." />
+						<input type="text" id="iw-active-search" placeholder="Search by name or email..." />
 					</div>
 					<table class="widefat" id="iw-active-students-table">
-						<thead><tr><th>Username</th><th>Email</th><th>Last Login</th><th>Expires</th><th>Extended Access</th><th>Action</th></tr></thead>
+						<thead><tr><th>First Name</th><th>Last Name</th><th>Email</th><th>Last Login</th><th>Expires</th><th>Extended Access</th><th>Action</th></tr></thead>
 						<tbody>
 						<?php
 						if ( empty( $all_students ) ) {
-							echo '<tr><td colspan="6">No active students found.</td></tr>';
+							echo '<tr><td colspan="7">No active students found.</td></tr>';
 						} else {
 							foreach ( $all_students as $s ) {
 								$exp = intval( get_user_meta( $s->ID, self::META_USER_EXPIRY, true ) );
 								$exp_date_value = $exp ? date( 'Y-m-d', $exp ) : '';
 								$exp_text = $exp ? $this->format_date( $exp ) : 'No expiry';
 								$student_id = intval( $s->ID );
-								$username = esc_html( $s->user_login );
+								$first_name = esc_html( get_user_meta( $s->ID, 'first_name', true ) );
+								$last_name = esc_html( get_user_meta( $s->ID, 'last_name', true ) );
 								$email = esc_html( $s->user_email );
+								$full_name = trim( $first_name . ' ' . $last_name );
+								if ( empty( $full_name ) ) {
+									$full_name = $email;
+								}
 								
 								// Get last login
 								$last_login = intval( get_user_meta( $s->ID, self::META_LAST_LOGIN, true ) );
 								$last_login_text = $last_login ? $this->format_date( $last_login ) : 'Never';
 								
-								echo '<tr id="iw-student-' . $student_id . '" data-username="' . esc_attr( strtolower( $username ) ) . '" data-email="' . esc_attr( strtolower( $email ) ) . '">';
-								echo '<td>' . $username . '</td>';
+								echo '<tr id="iw-student-' . $student_id . '" data-firstname="' . esc_attr( strtolower( $first_name ) ) . '" data-lastname="' . esc_attr( strtolower( $last_name ) ) . '" data-email="' . esc_attr( strtolower( $email ) ) . '">';
+								echo '<td>' . ( $first_name ?: '—' ) . '</td>';
+								echo '<td>' . ( $last_name ?: '—' ) . '</td>';
 								echo '<td>' . $email . '</td>';
 								echo '<td>' . esc_html( $last_login_text ) . '</td>';
 								echo '<td><span class="iw-expiry-display">' . esc_html( $exp_text ) . '</span></td>';
 								echo '<td>';
-								echo '<input type="date" class="iw-expiry-input" id="iw-expiry-input-' . $student_id . '" data-student="' . $student_id . '" value="' . esc_attr( $exp_date_value ) . '" aria-label="Expiry date for ' . esc_attr( $username ) . '" />';
-								echo '<button class="button iw-update-expiry" data-student="' . $student_id . '" aria-label="Update expiry for ' . esc_attr( $username ) . '">Update</button>';
+								echo '<input type="date" class="iw-expiry-input" id="iw-expiry-input-' . $student_id . '" data-student="' . $student_id . '" value="' . esc_attr( $exp_date_value ) . '" aria-label="Expiry date for ' . esc_attr( $full_name ) . '" />';
+								echo '<button class="button iw-update-expiry" data-student="' . $student_id . '" aria-label="Update expiry for ' . esc_attr( $full_name ) . '">Update</button>';
 								echo '</td>';
 								echo '<td><button class="button iw-revoke" data-student="' . $student_id . '">Revoke</button></td>';
 								echo '</tr>';
@@ -1006,34 +1012,40 @@ class Impact_Websites_Student_Management {
 				<!-- Inactive Students Section -->
 				<div id="iw-inactive-students" class="iw-student-section">
 					<div class="iw-search-box">
-						<input type="text" id="iw-inactive-search" placeholder="Search by username or email..." />
+						<input type="text" id="iw-inactive-search" placeholder="Search by name or email..." />
 					</div>
 					<table class="widefat" id="iw-inactive-students-table">
-						<thead><tr><th>Username</th><th>Email</th><th>Last Login</th><th>Last Expiry</th><th>How many additional days?</th></tr></thead>
+						<thead><tr><th>First Name</th><th>Last Name</th><th>Email</th><th>Last Login</th><th>Last Expiry</th><th>How many additional days?</th></tr></thead>
 						<tbody>
 						<?php
 						if ( empty( $inactive_students ) ) {
-							echo '<tr><td colspan="5">No inactive students found.</td></tr>';
+							echo '<tr><td colspan="6">No inactive students found.</td></tr>';
 						} else {
 							foreach ( $inactive_students as $s ) {
 								$exp = intval( get_user_meta( $s->ID, self::META_USER_EXPIRY, true ) );
 								$exp_text = $exp ? $this->format_date( $exp ) : 'No expiry set';
 								$student_id = intval( $s->ID );
-								$username = esc_html( $s->user_login );
+								$first_name = esc_html( get_user_meta( $s->ID, 'first_name', true ) );
+								$last_name = esc_html( get_user_meta( $s->ID, 'last_name', true ) );
 								$email = esc_html( $s->user_email );
+								$full_name = trim( $first_name . ' ' . $last_name );
+								if ( empty( $full_name ) ) {
+									$full_name = $email;
+								}
 								
 								// Get last login
 								$last_login = intval( get_user_meta( $s->ID, self::META_LAST_LOGIN, true ) );
 								$last_login_text = $last_login ? $this->format_date( $last_login ) : 'Never';
 								
-								echo '<tr id="iw-inactive-student-' . $student_id . '" data-username="' . esc_attr( strtolower( $username ) ) . '" data-email="' . esc_attr( strtolower( $email ) ) . '">';
-								echo '<td>' . $username . '</td>';
+								echo '<tr id="iw-inactive-student-' . $student_id . '" data-firstname="' . esc_attr( strtolower( $first_name ) ) . '" data-lastname="' . esc_attr( strtolower( $last_name ) ) . '" data-email="' . esc_attr( strtolower( $email ) ) . '">';
+								echo '<td>' . ( $first_name ?: '—' ) . '</td>';
+								echo '<td>' . ( $last_name ?: '—' ) . '</td>';
 								echo '<td>' . $email . '</td>';
 								echo '<td>' . esc_html( $last_login_text ) . '</td>';
 								echo '<td>' . esc_html( $exp_text ) . '</td>';
 								echo '<td>';
-								echo '<input type="number" class="iw-days-input" id="iw-days-input-' . $student_id . '" data-student="' . $student_id . '" value="' . intval( self::DEFAULT_REENROL_DAYS ) . '" min="1" placeholder="Days" aria-label="Days for ' . esc_attr( $username ) . '" />';
-								echo '<button class="button iw-reenrol" data-student="' . $student_id . '" aria-label="Re-enrol ' . esc_attr( $username ) . '">Re-enrol</button>';
+								echo '<input type="number" class="iw-days-input" id="iw-days-input-' . $student_id . '" data-student="' . $student_id . '" value="' . intval( self::DEFAULT_REENROL_DAYS ) . '" min="1" placeholder="Days" aria-label="Days for ' . esc_attr( $full_name ) . '" />';
+								echo '<button class="button iw-reenrol" data-student="' . $student_id . '" aria-label="Re-enrol ' . esc_attr( $full_name ) . '">Re-enrol</button>';
 								echo '</td>';
 								echo '</tr>';
 							}
@@ -1251,10 +1263,11 @@ class Impact_Websites_Student_Management {
 							const rows = table.querySelectorAll('tbody tr');
 							
 							rows.forEach(function(row) {
-								const username = row.getAttribute('data-username') || '';
+								const firstname = row.getAttribute('data-firstname') || '';
+								const lastname = row.getAttribute('data-lastname') || '';
 								const email = row.getAttribute('data-email') || '';
 								
-								if (username.includes(searchTerm) || email.includes(searchTerm)) {
+								if (firstname.includes(searchTerm) || lastname.includes(searchTerm) || email.includes(searchTerm)) {
 									row.style.display = '';
 								} else {
 									row.style.display = 'none';
