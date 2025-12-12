@@ -50,16 +50,20 @@ class Impact_Websites_Student_Management {
 	const META_INVITE_USED_BY = '_iw_invite_used_by';
 	const META_INVITE_USED_AT = '_iw_invite_used_at';
 	const META_INVITE_DAYS = '_iw_invite_days';
+	const META_INVITE_GROUP = '_iw_invite_group';
 	const META_USER_MANAGER = '_iw_user_manager';
 	const META_USER_EXPIRY = '_iw_user_expiry';
+	const META_USER_GROUP = '_iw_user_group';
 	const META_EXPIRY_NOTICE_SENT = '_iw_expiry_notice_sent';
 	const META_LAST_LOGIN = '_iw_last_login';
 	const OPTION_KEY = 'iw_student_management_options';
+	const OPTION_COURSE_GROUPS = 'iw_course_groups_mapping';
 	const CRON_HOOK = 'iw_sm_daily_cron';
 	const AJAX_CREATE = 'iw_create_invite';
 	const AJAX_REVOKE = 'iw_revoke_student';
 	const AJAX_DELETE_CODE = 'iw_delete_code';
 	const AJAX_UPDATE_EXPIRY = 'iw_update_expiry';
+	const AJAX_UPDATE_GROUP = 'iw_update_group';
 	const AJAX_REENROL = 'iw_reenrol_student';
 	const AJAX_CREATE_USER = 'iw_create_user_manually';
 	const DEFAULT_REENROL_DAYS = 30;
@@ -84,6 +88,7 @@ class Impact_Websites_Student_Management {
 		add_action( 'wp_ajax_' . self::AJAX_REVOKE, [ $this, 'ajax_revoke_student' ] );
 		add_action( 'wp_ajax_' . self::AJAX_DELETE_CODE, [ $this, 'ajax_delete_code' ] );
 		add_action( 'wp_ajax_' . self::AJAX_UPDATE_EXPIRY, [ $this, 'ajax_update_expiry' ] );
+		add_action( 'wp_ajax_' . self::AJAX_UPDATE_GROUP, [ $this, 'ajax_update_group' ] );
 		add_action( 'wp_ajax_' . self::AJAX_REENROL, [ $this, 'ajax_reenrol_student' ] );
 		add_action( 'wp_ajax_' . self::AJAX_CREATE_USER, [ $this, 'ajax_create_user_manually' ] );
 
@@ -252,6 +257,7 @@ class Impact_Websites_Student_Management {
 
 	public function register_settings() {
 		register_setting( 'iw_student_management', self::OPTION_KEY, [ 'sanitize_callback' => [ $this, 'sanitize_options' ] ] );
+		register_setting( 'iw_student_management', self::OPTION_COURSE_GROUPS, [ 'sanitize_callback' => [ $this, 'sanitize_course_groups' ] ] );
 		add_settings_section( 'iw_sm_main', 'Main settings', null, 'iw-student-management' );
 		add_settings_field( 'default_days', 'Default invite length (days)', [ $this, 'field_default_days' ], 'iw-student-management', 'iw_sm_main' );
 		add_settings_field( 'default_partner_limit', 'Max students per partner (0 = unlimited)', [ $this, 'field_partner_limit' ], 'iw-student-management', 'iw_sm_main' );
@@ -263,6 +269,9 @@ class Impact_Websites_Student_Management {
 		add_settings_field( 'logout_redirect', 'Post-logout redirect page', [ $this, 'field_logout_redirect' ], 'iw-student-management', 'iw_sm_main' );
 		add_settings_field( 'login_page_url', 'Login page (required for site-wide access control)', [ $this, 'field_login_page_url' ], 'iw-student-management', 'iw_sm_main' );
 		add_settings_field( 'registration_page_url', 'Registration page (public)', [ $this, 'field_registration_page_url' ], 'iw-student-management', 'iw_sm_main' );
+		
+		add_settings_section( 'iw_sm_course_groups', 'Course Groups', null, 'iw-student-management' );
+		add_settings_field( 'course_groups', 'Assign courses to groups', [ $this, 'field_course_groups' ], 'iw-student-management', 'iw_sm_course_groups' );
 	}
 
 	public function sanitize_options( $vals ) {
@@ -359,6 +368,74 @@ class Impact_Websites_Student_Management {
 		
 		$this->render_page_dropdown( 'logout_redirect', $selected, 'login' );
 		echo '<p class="description">Select the page to redirect users to after logout. Leave blank to use the login page.</p>';
+	}
+	
+	public function field_course_groups() {
+		$course_groups = get_option( self::OPTION_COURSE_GROUPS, [] );
+		$groups = $this->get_course_groups();
+		
+		// Get all LearnDash courses
+		$all_courses = get_posts( [
+			'post_type' => 'sfwd-courses',
+			'posts_per_page' => -1,
+			'orderby' => 'title',
+			'order' => 'ASC',
+		] );
+		
+		if ( empty( $all_courses ) ) {
+			echo '<p>No LearnDash courses found. Please create courses first.</p>';
+			return;
+		}
+		
+		echo '<p class="description">Assign each LearnDash course to one or more groups. The "ALL Courses" group will automatically include all courses.</p>';
+		echo '<div style="margin-top: 15px;">';
+		
+		// Show each group (except 'all') with checkboxes for courses
+		foreach ( $groups as $group_id => $group_label ) {
+			if ( $group_id === 'all' ) {
+				continue; // Skip 'all' as it's automatic
+			}
+			
+			$assigned_courses = isset( $course_groups[ $group_id ] ) ? $course_groups[ $group_id ] : [];
+			
+			echo '<div style="background: #f9f9f9; border: 1px solid #ddd; padding: 15px; margin-bottom: 20px; border-radius: 4px;">';
+			echo '<h4 style="margin-top: 0;">' . esc_html( $group_label ) . '</h4>';
+			
+			foreach ( $all_courses as $course ) {
+				$checked = in_array( $course->ID, $assigned_courses ) ? 'checked' : '';
+				echo '<label style="display: block; margin-bottom: 8px;">';
+				echo '<input type="checkbox" name="' . esc_attr( self::OPTION_COURSE_GROUPS . '[' . $group_id . '][]' ) . '" value="' . intval( $course->ID ) . '" ' . $checked . ' /> ';
+				echo esc_html( $course->post_title );
+				echo '</label>';
+			}
+			
+			echo '</div>';
+		}
+		
+		echo '</div>';
+	}
+	
+	public function sanitize_course_groups( $input ) {
+		if ( ! is_array( $input ) ) {
+			return [];
+		}
+		
+		$sanitized = [];
+		$groups = $this->get_course_groups();
+		
+		foreach ( $groups as $group_id => $group_label ) {
+			if ( $group_id === 'all' ) {
+				continue; // Skip 'all' as it's automatic
+			}
+			
+			if ( isset( $input[ $group_id ] ) && is_array( $input[ $group_id ] ) ) {
+				$sanitized[ $group_id ] = array_map( 'intval', $input[ $group_id ] );
+			} else {
+				$sanitized[ $group_id ] = [];
+			}
+		}
+		
+		return $sanitized;
 	}
 	
 	/**
@@ -602,7 +679,14 @@ class Impact_Websites_Student_Management {
 		$quantity = isset( $_POST['quantity'] ) ? intval( $_POST['quantity'] ) : 1;
 		$quantity = max( 1, min( 10, $quantity ) ); // limit 1..10
 		$days = isset( $_POST['days'] ) ? intval( $_POST['days'] ) : 30;
+		$course_group = isset( $_POST['course_group'] ) ? sanitize_text_field( wp_unslash( $_POST['course_group'] ) ) : 'all';
 		$email_codes = isset( $_POST['email_codes'] ) && $_POST['email_codes'] === 'yes';
+		
+		// Validate course group
+		$valid_groups = array_keys( $this->get_course_groups() );
+		if ( ! in_array( $course_group, $valid_groups ) ) {
+			$course_group = 'all';
+		}
 
 		$codes = [];
 		for ( $i = 0; $i < $quantity; $i++ ) {
@@ -619,6 +703,7 @@ class Impact_Websites_Student_Management {
 			update_post_meta( $post_id, self::META_MANAGER, $partner_id );
 			update_post_meta( $post_id, self::META_INVITE_CODE, $code );
 			update_post_meta( $post_id, self::META_INVITE_DAYS, $days );
+			update_post_meta( $post_id, self::META_INVITE_GROUP, $course_group );
 			$codes[] = $code;
 		}
 
@@ -675,8 +760,14 @@ class Impact_Websites_Student_Management {
 		// Set expiry to now (marks as expired)
 		update_user_meta( $student_id, self::META_USER_EXPIRY, time() );
 		
-		// Remove all LearnDash course enrollments
-		$this->remove_user_enrollments( $student_id );
+		// Get user's course group to remove only their enrolled courses
+		$user_group = get_user_meta( $student_id, self::META_USER_GROUP, true );
+		if ( empty( $user_group ) ) {
+			$user_group = 'all'; // Default for legacy users
+		}
+		
+		// Remove course enrollments for user's group
+		$this->remove_user_group_enrollments( $student_id, $user_group );
 		
 		// Remove all roles from user (sets to no role)
 		$user->set_role( '' );
@@ -778,6 +869,61 @@ class Impact_Websites_Student_Management {
 		wp_send_json_success( 'Expiry updated' );
 	}
 
+	/* AJAX: update student course group */
+	public function ajax_update_group() {
+		if ( ! is_user_logged_in() || ! current_user_can( self::CAP_MANAGE ) ) {
+			wp_send_json_error( 'Unauthorized', 403 );
+		}
+		if ( empty( $_POST['iw_dash_nonce'] ) || ! wp_verify_nonce( wp_unslash( $_POST['iw_dash_nonce'] ), self::NONCE_DASH ) ) {
+			wp_send_json_error( 'Invalid request', 400 );
+		}
+		$student_id = isset( $_POST['student_id'] ) ? intval( $_POST['student_id'] ) : 0;
+		$new_group = isset( $_POST['course_group'] ) ? sanitize_text_field( wp_unslash( $_POST['course_group'] ) ) : '';
+		
+		if ( ! $student_id || ! $new_group ) {
+			wp_send_json_error( 'Missing required fields', 400 );
+		}
+
+		$user = get_userdata( $student_id );
+		if ( ! $user ) {
+			wp_send_json_error( 'Invalid user', 400 );
+		}
+
+		// Check if user is a subscriber (active student)
+		if ( ! in_array( 'subscriber', $user->roles ) ) {
+			wp_send_json_error( 'User is not an active student', 403 );
+		}
+		
+		// Validate course group
+		$valid_groups = array_keys( $this->get_course_groups() );
+		if ( ! in_array( $new_group, $valid_groups ) ) {
+			wp_send_json_error( 'Invalid course group', 400 );
+		}
+		
+		// Ensure user has manager meta assigned
+		$this->ensure_user_manager( $student_id );
+		
+		// Get current group
+		$old_group = get_user_meta( $student_id, self::META_USER_GROUP, true );
+		if ( empty( $old_group ) ) {
+			$old_group = 'all';
+		}
+		
+		// If group changed, update enrollments
+		if ( $old_group !== $new_group ) {
+			// Remove old group enrollments
+			$this->remove_user_group_enrollments( $student_id, $old_group );
+			
+			// Add new group enrollments
+			$this->enroll_user_in_group_courses( $student_id, $new_group );
+			
+			// Update user meta
+			update_user_meta( $student_id, self::META_USER_GROUP, $new_group );
+		}
+
+		wp_send_json_success( 'Course group updated' );
+	}
+
 	/* AJAX: re-enrol inactive student (global — any partner admin can re-enrol any previously managed student) */
 	public function ajax_reenrol_student() {
 		if ( ! is_user_logged_in() || ! current_user_can( self::CAP_MANAGE ) ) {
@@ -814,8 +960,15 @@ class Impact_Websites_Student_Management {
 		update_user_meta( $student_id, self::META_USER_EXPIRY, $new_expiry );
 		delete_user_meta( $student_id, self::META_EXPIRY_NOTICE_SENT );
 		
-		// Re-enroll in all LearnDash courses
-		$this->enroll_user_in_all_courses( $student_id );
+		// Get user's course group (default to 'all' if not set)
+		$user_group = get_user_meta( $student_id, self::META_USER_GROUP, true );
+		if ( empty( $user_group ) ) {
+			$user_group = 'all';
+			update_user_meta( $student_id, self::META_USER_GROUP, $user_group );
+		}
+		
+		// Re-enroll in group-specific courses
+		$this->enroll_user_in_group_courses( $student_id, $user_group );
 		
 		wp_send_json_success( 'Student re-enrolled successfully' );
 	}
@@ -900,15 +1053,23 @@ class Impact_Websites_Student_Management {
 		update_user_meta( $user_id, 'first_name', $first_name );
 		update_user_meta( $user_id, 'last_name', $last_name );
 
+		// Get and validate course group
+		$course_group = isset( $_POST['course_group'] ) ? sanitize_text_field( wp_unslash( $_POST['course_group'] ) ) : 'all';
+		$valid_groups = array_keys( $this->get_course_groups() );
+		if ( ! in_array( $course_group, $valid_groups ) ) {
+			$course_group = 'all';
+		}
+
 		// Set expiry and manager
 		$partner_id = get_current_user_id();
 		$expiry_ts = time() + ( $days * DAY_IN_SECONDS );
 		update_user_meta( $user_id, self::META_USER_MANAGER, $partner_id );
 		update_user_meta( $user_id, self::META_USER_EXPIRY, $expiry_ts );
+		update_user_meta( $user_id, self::META_USER_GROUP, $course_group );
 		delete_user_meta( $user_id, self::META_EXPIRY_NOTICE_SENT );
 
-		// Enroll in all LearnDash courses
-		$this->enroll_user_in_all_courses( $user_id );
+		// Enroll in group-specific courses
+		$this->enroll_user_in_group_courses( $user_id, $course_group );
 
 		// Send welcome email with credentials
 		$this->send_welcome_email( $user_id, $username, $password, $email, $first_name, $expiry_ts );
@@ -943,6 +1104,44 @@ class Impact_Websites_Student_Management {
 			$current_partner_id = get_current_user_id();
 			update_user_meta( $user_id, self::META_USER_MANAGER, $current_partner_id );
 		}
+	}
+
+	/**
+	 * Get list of available course groups
+	 * 
+	 * @return array Array of group identifiers and labels
+	 */
+	private function get_course_groups() {
+		return [
+			'all' => 'ALL Courses',
+			'ielts_general' => 'IELTS General Training',
+			'ielts_academic' => 'IELTS Academic Module',
+			'general_english' => 'General English',
+		];
+	}
+
+	/**
+	 * Get courses for a specific group
+	 * 
+	 * @param string $group_id Group identifier
+	 * @return array Array of course IDs
+	 */
+	private function get_courses_for_group( $group_id ) {
+		// If 'all', return all courses
+		if ( $group_id === 'all' ) {
+			$posts = get_posts( [ 'post_type' => 'sfwd-courses', 'posts_per_page' => -1, 'fields' => 'ids' ] );
+			return $posts;
+		}
+		
+		// Get course group mapping from settings
+		$course_groups = get_option( self::OPTION_COURSE_GROUPS, [] );
+		
+		// Return courses assigned to this group
+		if ( isset( $course_groups[ $group_id ] ) && is_array( $course_groups[ $group_id ] ) ) {
+			return $course_groups[ $group_id ];
+		}
+		
+		return [];
 	}
 
 	private function generate_code( $length = 8 ) {
@@ -1063,6 +1262,20 @@ class Impact_Websites_Student_Management {
 						</td>
 					</tr>
 					<tr>
+						<th>Course Group</th>
+						<td>
+							<select name="course_group">
+								<?php
+								$groups = $this->get_course_groups();
+								foreach ( $groups as $group_id => $group_label ) {
+									echo '<option value="' . esc_attr( $group_id ) . '">' . esc_html( $group_label ) . '</option>';
+								}
+								?>
+							</select>
+							<p class="iw-note" style="margin:6px 0 0;">Select which courses users with this code can access.</p>
+						</td>
+					</tr>
+					<tr>
 						<th>Email codes to me?</th>
 						<td><label><input type="checkbox" name="email_codes" value="yes" /> Yes, send codes to my email</label></td>
 					</tr>
@@ -1103,6 +1316,20 @@ class Impact_Websites_Student_Management {
 								<option value="180">180</option>
 								<option value="365">365</option>
 							</select>
+						</td>
+					</tr>
+					<tr>
+						<th>Course Group</th>
+						<td>
+							<select name="course_group">
+								<?php
+								$groups = $this->get_course_groups();
+								foreach ( $groups as $group_id => $group_label ) {
+									echo '<option value="' . esc_attr( $group_id ) . '">' . esc_html( $group_label ) . '</option>';
+								}
+								?>
+							</select>
+							<p class="iw-note" style="margin:6px 0 0;">Select which courses this user can access.</p>
 						</td>
 					</tr>
 					<tr>
@@ -1204,12 +1431,13 @@ class Impact_Websites_Student_Management {
 						<input type="text" id="iw-active-search" placeholder="Search by name or email..." />
 					</div>
 					<table class="widefat" id="iw-active-students-table">
-						<thead><tr><th>Name</th><th>Email</th><th>Last Login</th><th>Expires</th><th>Extended Access</th><th>Action</th></tr></thead>
+						<thead><tr><th>Name</th><th>Email</th><th>Last Login</th><th>Course Group</th><th>Expires</th><th>Extended Access</th><th>Action</th></tr></thead>
 						<tbody>
 						<?php
 						if ( empty( $all_students ) ) {
-							echo '<tr><td colspan="6">No active students found.</td></tr>';
+							echo '<tr><td colspan="7">No active students found.</td></tr>';
 						} else {
+							$groups = $this->get_course_groups();
 							foreach ( $all_students as $s ) {
 								$exp = intval( get_user_meta( $s->ID, self::META_USER_EXPIRY, true ) );
 								$exp_date_value = $exp ? date( 'Y-m-d', $exp ) : '';
@@ -1227,10 +1455,26 @@ class Impact_Websites_Student_Management {
 								$last_login = intval( get_user_meta( $s->ID, self::META_LAST_LOGIN, true ) );
 								$last_login_text = $last_login ? $this->format_date( $last_login ) : 'Never';
 								
+								// Get course group
+								$user_group = get_user_meta( $s->ID, self::META_USER_GROUP, true );
+								if ( empty( $user_group ) ) {
+									$user_group = 'all';
+								}
+								$group_label = isset( $groups[ $user_group ] ) ? $groups[ $user_group ] : 'ALL Courses';
+								
 								echo '<tr id="iw-student-' . $student_id . '" data-firstname="' . esc_attr( strtolower( $first_name ) ) . '" data-lastname="' . esc_attr( strtolower( $last_name ) ) . '" data-email="' . esc_attr( strtolower( $email ) ) . '">';
 								echo '<td>' . ( $full_name !== $email ? $full_name : '—' ) . '</td>';
 								echo '<td>' . $email . '</td>';
 								echo '<td>' . esc_html( $last_login_text ) . '</td>';
+								echo '<td>';
+								echo '<select class="iw-group-select" data-student="' . $student_id . '" style="width:150px;font-size:12px;padding:4px;">';
+								foreach ( $groups as $gid => $glabel ) {
+									$selected = ( $gid === $user_group ) ? ' selected' : '';
+									echo '<option value="' . esc_attr( $gid ) . '"' . $selected . '>' . esc_html( $glabel ) . '</option>';
+								}
+								echo '</select>';
+								echo '<button class="button iw-update-group" data-student="' . $student_id . '" style="margin-left:5px;">Update</button>';
+								echo '</td>';
 								echo '<td><span class="iw-expiry-display">' . esc_html( $exp_text ) . '</span></td>';
 								echo '<td>';
 								echo '<input type="date" class="iw-expiry-input" id="iw-expiry-input-' . $student_id . '" data-student="' . $student_id . '" value="' . esc_attr( $exp_date_value ) . '" aria-label="Expiry date for ' . esc_attr( $full_name ) . '" />';
@@ -1466,6 +1710,40 @@ class Impact_Websites_Student_Management {
 				});
 			});
 
+			// Update course group
+			document.querySelectorAll('.iw-update-group').forEach(function(btn){
+				btn.addEventListener('click', function(){
+					const studentId = this.getAttribute('data-student');
+					const select = document.querySelector('.iw-group-select[data-student="' + studentId + '"]');
+					const newGroup = select ? select.value : '';
+					
+					if(!newGroup) {
+						alert('Please select a course group');
+						return;
+					}
+					
+					if(!confirm('Update course group for this student? This will change their course enrollments.')) return;
+					
+					const data = new FormData();
+					data.append('action','<?php echo esc_js( self::AJAX_UPDATE_GROUP ); ?>');
+					data.append('student_id', studentId);
+					data.append('course_group', newGroup);
+					data.append('iw_dash_nonce', '<?php echo esc_js( $dash_nonce ); ?>');
+					fetch('<?php echo esc_url( admin_url( 'admin-ajax.php' ) ); ?>', {
+						method:'POST',
+						credentials:'same-origin',
+						body:data
+					}).then(r=>r.json()).then(d=>{
+						if(d.success){
+							alert('Course group updated successfully.');
+							location.reload();
+						}else{
+							alert('Error updating course group: ' + (d.data||d));
+						}
+					});
+				});
+			});
+
 			// Student tabs functionality
 			const studentTabs = document.querySelectorAll('.iw-tab-student');
 			const studentSections = document.querySelectorAll('.iw-student-section');
@@ -1688,8 +1966,15 @@ class Impact_Websites_Student_Management {
 		}
 		$invite_expiry_ts = $invite_days > 0 ? time() + ( $invite_days * DAY_IN_SECONDS ) : 0;
 		
+		// Get course group from invite
+		$invite_group = get_post_meta( $inv_id, self::META_INVITE_GROUP, true );
+		if ( empty( $invite_group ) ) {
+			$invite_group = 'all'; // Default to all courses for legacy invites
+		}
+		
 		update_user_meta( $user_id, self::META_USER_MANAGER, $manager_id ?: 0 ); // store creator or 0
 		update_user_meta( $user_id, self::META_USER_EXPIRY, $invite_expiry_ts );
+		update_user_meta( $user_id, self::META_USER_GROUP, $invite_group );
 		delete_user_meta( $user_id, self::META_EXPIRY_NOTICE_SENT );
 
 		// mark invite used and store user info (DO NOT delete invite)
@@ -1697,8 +1982,8 @@ class Impact_Websites_Student_Management {
 		update_post_meta( $inv_id, self::META_INVITE_USED_BY, $user_id );
 		update_post_meta( $inv_id, self::META_INVITE_USED_AT, time() );
 
-		// enroll into ALL courses
-		$this->enroll_user_in_all_courses( $user_id );
+		// enroll into group-specific courses
+		$this->enroll_user_in_group_courses( $user_id, $invite_group );
 
 		// notify partner (creator) if present
 		$this->notify_partner_invite_used( $manager_id, $user_id, $code, $invite_expiry_ts );
@@ -1765,14 +2050,15 @@ class Impact_Websites_Student_Management {
 		return $active;
 	}
 
-	/* Enroll into ALL LearnDash courses */
-	private function enroll_user_in_all_courses( $user_id ) {
-		$posts = get_posts( [ 'post_type' => 'sfwd-courses', 'posts_per_page' => -1 ] );
-		if ( empty( $posts ) ) {
+	/* Enroll user in courses for a specific group */
+	private function enroll_user_in_group_courses( $user_id, $group_id = 'all' ) {
+		$course_ids = $this->get_courses_for_group( $group_id );
+		
+		if ( empty( $course_ids ) ) {
 			return;
 		}
-		foreach ( $posts as $p ) {
-			$course_id = $p->ID;
+		
+		foreach ( $course_ids as $course_id ) {
 			if ( function_exists( 'ld_update_course_access' ) ) {
 				ld_update_course_access( $user_id, $course_id );
 			} elseif ( function_exists( 'learndash_enroll_user' ) ) {
@@ -1784,17 +2070,33 @@ class Impact_Websites_Student_Management {
 		}
 	}
 
-	/* Remove enrollments */
-	private function remove_user_enrollments( $user_id ) {
-		$posts = get_posts( [ 'post_type' => 'sfwd-courses', 'posts_per_page' => -1 ] );
-		foreach ( $posts as $c ) {
+	/* Enroll into ALL LearnDash courses (kept for backward compatibility) */
+	private function enroll_user_in_all_courses( $user_id ) {
+		$this->enroll_user_in_group_courses( $user_id, 'all' );
+	}
+
+	/* Remove enrollments for a specific group */
+	private function remove_user_group_enrollments( $user_id, $group_id = 'all' ) {
+		$course_ids = $this->get_courses_for_group( $group_id );
+		
+		foreach ( $course_ids as $course_id ) {
 			if ( function_exists( 'ld_update_course_access' ) ) {
-				ld_update_course_access( $user_id, $c->ID, true );
+				ld_update_course_access( $user_id, $course_id, true );
 			} else {
-				$key = 'course_' . $c->ID . '_access';
+				$key = 'course_' . $course_id . '_access';
 				delete_user_meta( $user_id, $key );
 			}
 		}
+	}
+
+	/* Remove all enrollments (kept for backward compatibility) */
+	private function remove_user_enrollments( $user_id ) {
+		// For backward compatibility, get user's group and remove those enrollments
+		$user_group = get_user_meta( $user_id, self::META_USER_GROUP, true );
+		if ( empty( $user_group ) ) {
+			$user_group = 'all';
+		}
+		$this->remove_user_group_enrollments( $user_id, $user_group );
 	}
 
 	/* Daily cron: notify and expire users */
