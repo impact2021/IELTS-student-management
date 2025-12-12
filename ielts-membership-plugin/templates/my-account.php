@@ -13,7 +13,7 @@ $is_expired = ($expiry_ts && $expiry_ts <= $now);
 ?>
 
 <style>
-.iw-table { width:100%; max-width:920px; border-collapse:collapse; margin-bottom:1em; font-family: Arial, sans-serif; }
+.iw-table { width:100%; border-collapse:collapse; margin-bottom:1em; font-family: Arial, sans-serif; border-radius:8px; overflow:hidden; border:1px solid #e6e6e6; }
 .iw-table thead th { background:#f8f9fa; color:#333333; padding:14px; text-align:left; font-size:16px; border:1px solid #e6e6e6; }
 .iw-table td, .iw-table th { padding:12px; border:1px solid #e6e6e6; vertical-align:middle; }
 .iw-table td:nth-child(even) { background:#f7f7f7; }
@@ -27,6 +27,13 @@ $is_expired = ($expiry_ts && $expiry_ts <= $now);
 .iw-error { background:#f8d7da; color:#721c24; border:1px solid #f5c6cb; }
 .iw-expiry-notice { padding:15px; margin:20px 0; border-radius:4px; background:#fff3cd; color:#856404; border:1px solid #ffeeba; }
 .iw-expired { background:#f8d7da; color:#721c24; border:1px solid #f5c6cb; }
+.iw-password-fields { display:flex; gap:15px; flex-wrap:wrap; }
+.iw-password-field { flex:1; min-width:200px; }
+.iw-password-field label { display:block; margin-bottom:5px; font-weight:600; }
+@media (max-width: 768px) {
+    .iw-password-fields { flex-direction:column; }
+    .iw-password-field { min-width:100%; }
+}
 </style>
 
 <div class="iw-my-account-wrapper">
@@ -89,20 +96,22 @@ $is_expired = ($expiry_ts && $expiry_ts <= $now);
             <tr>
                 <td colspan="2">
                     <form id="iw-change-password-form">
-                        <div style="margin-bottom:15px;">
-                            <label style="display:block;margin-bottom:5px;font-weight:600;">Current Password</label>
-                            <input type="password" name="current_password" class="iw-input" required />
+                        <div class="iw-password-fields">
+                            <div class="iw-password-field">
+                                <label>Current Password</label>
+                                <input type="password" name="current_password" class="iw-input" required />
+                            </div>
+                            <div class="iw-password-field">
+                                <label>New Password</label>
+                                <input type="password" name="new_password" class="iw-input" required />
+                            </div>
+                            <div class="iw-password-field">
+                                <label>Confirm New Password</label>
+                                <input type="password" name="confirm_password" class="iw-input" required />
+                            </div>
                         </div>
-                        <div style="margin-bottom:15px;">
-                            <label style="display:block;margin-bottom:5px;font-weight:600;">New Password</label>
-                            <input type="password" name="new_password" class="iw-input" required />
-                        </div>
-                        <div style="margin-bottom:15px;">
-                            <label style="display:block;margin-bottom:5px;font-weight:600;">Confirm New Password</label>
-                            <input type="password" name="confirm_password" class="iw-input" required />
-                        </div>
-                        <div id="password-change-message"></div>
-                        <button type="submit" class="iw-submit">Change Password</button>
+                        <div id="password-change-message" style="margin-top:15px;"></div>
+                        <button type="submit" class="iw-submit" style="margin-top:10px;">Change Password</button>
                     </form>
                 </td>
             </tr>

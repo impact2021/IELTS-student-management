@@ -59,6 +59,7 @@ class Impact_Websites_Student_Management {
 	const AJAX_REVOKE = 'iw_revoke_student';
 	const AJAX_DELETE_CODE = 'iw_delete_code';
 	const AJAX_UPDATE_EXPIRY = 'iw_update_expiry';
+	const AJAX_REENROL = 'iw_reenrol_student';
 	const NONCE_DASH = 'iw_dashboard_nonce';
 	const NONCE_REGISTER = 'iw_register_nonce';
 	const PARTNER_ROLE = 'partner_admin';
@@ -80,6 +81,7 @@ class Impact_Websites_Student_Management {
 		add_action( 'wp_ajax_' . self::AJAX_REVOKE, [ $this, 'ajax_revoke_student' ] );
 		add_action( 'wp_ajax_' . self::AJAX_DELETE_CODE, [ $this, 'ajax_delete_code' ] );
 		add_action( 'wp_ajax_' . self::AJAX_UPDATE_EXPIRY, [ $this, 'ajax_update_expiry' ] );
+		add_action( 'wp_ajax_' . self::AJAX_REENROL, [ $this, 'ajax_reenrol_student' ] );
 
 		// Shortcodes
 		add_shortcode( 'iw_partner_dashboard', [ $this, 'shortcode_partner_dashboard' ] );
@@ -662,6 +664,46 @@ class Impact_Websites_Student_Management {
 		wp_send_json_success( 'Expiry updated' );
 	}
 
+	/* AJAX: re-enrol inactive student (global — any partner admin can re-enrol any previously managed student) */
+	public function ajax_reenrol_student() {
+		if ( ! is_user_logged_in() || ! current_user_can( self::CAP_MANAGE ) ) {
+			wp_send_json_error( 'Unauthorized', 403 );
+		}
+		if ( empty( $_POST['iw_dash_nonce'] ) || ! wp_verify_nonce( wp_unslash( $_POST['iw_dash_nonce'] ), self::NONCE_DASH ) ) {
+			wp_send_json_error( 'Invalid request', 400 );
+		}
+		$student_id = isset( $_POST['student_id'] ) ? intval( $_POST['student_id'] ) : 0;
+		$days = isset( $_POST['days'] ) ? intval( $_POST['days'] ) : 0;
+		
+		if ( ! $student_id || ! $days ) {
+			wp_send_json_error( 'Missing required fields', 400 );
+		}
+		
+		$user = get_userdata( $student_id );
+		if ( ! $user ) {
+			wp_send_json_error( 'Invalid user', 400 );
+		}
+		
+		// Verify the student was managed by a partner (part of the global pool)
+		$mgr = intval( get_user_meta( $student_id, self::META_USER_MANAGER, true ) );
+		if ( ! $mgr ) {
+			wp_send_json_error( 'This user was not managed by a partner', 403 );
+		}
+		
+		// Calculate new expiry
+		$new_expiry = time() + ( $days * DAY_IN_SECONDS );
+		
+		// Re-activate the user
+		$user->set_role( 'subscriber' );
+		update_user_meta( $student_id, self::META_USER_EXPIRY, $new_expiry );
+		delete_user_meta( $student_id, self::META_EXPIRY_NOTICE_SENT );
+		
+		// Re-enroll in all LearnDash courses
+		$this->enroll_user_in_all_courses( $student_id );
+		
+		wp_send_json_success( 'Student re-enrolled successfully' );
+	}
+
 	private function generate_code( $length = 8 ) {
 		$chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 		$max = strlen( $chars ) - 1;
@@ -698,7 +740,7 @@ class Impact_Websites_Student_Management {
 			'order'       => 'DESC',
 		] );
 
-		// All students with subscriber role
+		// All students with subscriber role (active students)
 		$now = time();
 		$users = get_users( [
 			'role' => 'subscriber',
@@ -706,10 +748,22 @@ class Impact_Websites_Student_Management {
 		] );
 		$all_students = $users; // All subscribers are included in the list
 
+		// Get inactive students (users who were previously managed but are no longer subscribers)
+		$all_users = get_users( [ 'fields' => 'all_with_meta' ] );
+		$inactive_students = [];
+		foreach ( $all_users as $u ) {
+			// Check if user was managed by a partner
+			$mgr = intval( get_user_meta( $u->ID, self::META_USER_MANAGER, true ) );
+			if ( $mgr && ! in_array( 'subscriber', $u->roles ) ) {
+				$inactive_students[] = $u;
+			}
+		}
+
 		// limit: use global partner limit (site setting). This is for the shared pool.
 		$options = get_option( self::OPTION_KEY, [] );
 		$global_limit = intval( $options['default_partner_limit'] ?? 0 );
 		$active_count = count( $all_students );
+		$inactive_count = count( $inactive_students );
 		$slots_left = ( $global_limit === 0 ) ? 'Unlimited' : max( 0, $global_limit - $active_count );
 
 		ob_start();
@@ -730,6 +784,9 @@ class Impact_Websites_Student_Management {
 		.iw-dashboard-section h2 { margin-top:0; }
 		.iw-expiry-input { width:120px; padding:4px 8px; font-size:13px; }
 		.iw-update-expiry { margin-left:8px; }
+		.iw-student-section { display:none; }
+		.iw-student-section.active { display:block; }
+		.iw-days-input { width:80px; padding:4px 8px; font-size:13px; margin-right:8px; }
 		</style>
 		<div id="iw-partner-dashboard">
 			<div class="iw-dashboard-section">
@@ -843,36 +900,74 @@ class Impact_Websites_Student_Management {
 			</div>
 
 			<div class="iw-dashboard-section">
-				<h2>Active students (<?php echo intval( $active_count ); ?>)</h2>
+				<h2>Students</h2>
 				<p>Slots left: <strong><?php echo is_numeric( $slots_left ) ? intval( $slots_left ) : esc_html( $slots_left ); ?></strong></p>
-				<table class="widefat">
-					<thead><tr><th>Username</th><th>Email</th><th>Expires</th><th>Action</th></tr></thead>
-				<tbody>
-				<?php
-				if ( empty( $all_students ) ) {
-					echo '<tr><td colspan="4">No students found.</td></tr>';
-				} else {
-					foreach ( $all_students as $s ) {
-						$exp = intval( get_user_meta( $s->ID, self::META_USER_EXPIRY, true ) );
-						$exp_date_value = $exp ? date( 'Y-m-d', $exp ) : '';
-						$exp_text = $exp ? $this->format_date( $exp ) : 'No expiry';
-						$student_id = intval( $s->ID );
-						$username = esc_html( $s->user_login );
-						echo '<tr id="iw-student-' . $student_id . '">';
-						echo '<td>' . $username . '</td>';
-						echo '<td>' . esc_html( $s->user_email ) . '</td>';
-						echo '<td>';
-						echo '<span class="iw-expiry-display">' . esc_html( $exp_text ) . '</span> ';
-						echo '<input type="date" class="iw-expiry-input" id="iw-expiry-input-' . $student_id . '" data-student="' . $student_id . '" value="' . esc_attr( $exp_date_value ) . '" aria-label="Expiry date for ' . esc_attr( $username ) . '" />';
-						echo '<button class="button iw-update-expiry" data-student="' . $student_id . '" aria-label="Update expiry for ' . esc_attr( $username ) . '">Update</button>';
-						echo '</td>';
-						echo '<td><button class="button iw-revoke" data-student="' . $student_id . '">Revoke</button></td>';
-						echo '</tr>';
-					}
-				}
-				?>
-				</tbody>
-			</table>
+				<div class="iw-tabs">
+					<button class="iw-tab-student active" data-student-tab="active">Active (<?php echo intval( $active_count ); ?>)</button>
+					<button class="iw-tab-student" data-student-tab="inactive">Inactive (<?php echo intval( $inactive_count ); ?>)</button>
+				</div>
+
+				<!-- Active Students Section -->
+				<div id="iw-active-students" class="iw-student-section active">
+					<table class="widefat">
+						<thead><tr><th>Username</th><th>Email</th><th>Expires</th><th>Action</th></tr></thead>
+						<tbody>
+						<?php
+						if ( empty( $all_students ) ) {
+							echo '<tr><td colspan="4">No active students found.</td></tr>';
+						} else {
+							foreach ( $all_students as $s ) {
+								$exp = intval( get_user_meta( $s->ID, self::META_USER_EXPIRY, true ) );
+								$exp_date_value = $exp ? date( 'Y-m-d', $exp ) : '';
+								$exp_text = $exp ? $this->format_date( $exp ) : 'No expiry';
+								$student_id = intval( $s->ID );
+								$username = esc_html( $s->user_login );
+								echo '<tr id="iw-student-' . $student_id . '">';
+								echo '<td>' . $username . '</td>';
+								echo '<td>' . esc_html( $s->user_email ) . '</td>';
+								echo '<td>';
+								echo '<span class="iw-expiry-display">' . esc_html( $exp_text ) . '</span> ';
+								echo '<input type="date" class="iw-expiry-input" id="iw-expiry-input-' . $student_id . '" data-student="' . $student_id . '" value="' . esc_attr( $exp_date_value ) . '" aria-label="Expiry date for ' . esc_attr( $username ) . '" />';
+								echo '<button class="button iw-update-expiry" data-student="' . $student_id . '" aria-label="Update expiry for ' . esc_attr( $username ) . '">Update</button>';
+								echo '</td>';
+								echo '<td><button class="button iw-revoke" data-student="' . $student_id . '">Revoke</button></td>';
+								echo '</tr>';
+							}
+						}
+						?>
+						</tbody>
+					</table>
+				</div>
+
+				<!-- Inactive Students Section -->
+				<div id="iw-inactive-students" class="iw-student-section">
+					<table class="widefat">
+						<thead><tr><th>Username</th><th>Email</th><th>Last Expiry</th><th>Action</th></tr></thead>
+						<tbody>
+						<?php
+						if ( empty( $inactive_students ) ) {
+							echo '<tr><td colspan="4">No inactive students found.</td></tr>';
+						} else {
+							foreach ( $inactive_students as $s ) {
+								$exp = intval( get_user_meta( $s->ID, self::META_USER_EXPIRY, true ) );
+								$exp_text = $exp ? $this->format_date( $exp ) : 'No expiry set';
+								$student_id = intval( $s->ID );
+								$username = esc_html( $s->user_login );
+								echo '<tr id="iw-inactive-student-' . $student_id . '">';
+								echo '<td>' . $username . '</td>';
+								echo '<td>' . esc_html( $s->user_email ) . '</td>';
+								echo '<td>' . esc_html( $exp_text ) . '</td>';
+								echo '<td>';
+								echo '<input type="number" class="iw-days-input" id="iw-days-input-' . $student_id . '" data-student="' . $student_id . '" value="30" min="1" placeholder="Days" aria-label="Days for ' . esc_attr( $username ) . '" />';
+								echo '<button class="button iw-reenrol" data-student="' . $student_id . '" aria-label="Re-enrol ' . esc_attr( $username ) . '">Re-enrol</button>';
+								echo '</td>';
+								echo '</tr>';
+							}
+						}
+						?>
+						</tbody>
+					</table>
+				</div>
 			</div>
 		</div>
 
@@ -1007,6 +1102,63 @@ class Impact_Websites_Student_Management {
 							location.reload();
 						}else{
 							alert('Error updating expiry: ' + (d.data||d));
+						}
+					});
+				});
+			});
+
+			// Student tabs functionality
+			const studentTabs = document.querySelectorAll('.iw-tab-student');
+			const studentSections = document.querySelectorAll('.iw-student-section');
+			
+			studentTabs.forEach(tab => {
+				tab.addEventListener('click', function() {
+					// Remove active class from all tabs
+					studentTabs.forEach(t => t.classList.remove('active'));
+					// Add active to clicked tab
+					this.classList.add('active');
+					
+					// Hide all sections
+					studentSections.forEach(section => section.classList.remove('active'));
+					
+					// Show selected section
+					const targetTab = this.getAttribute('data-student-tab');
+					const targetSection = document.getElementById('iw-' + targetTab + '-students');
+					if (targetSection) {
+						targetSection.classList.add('active');
+					}
+				});
+			});
+
+			// Re-enrol student
+			document.querySelectorAll('.iw-reenrol').forEach(function(btn){
+				btn.addEventListener('click', function(){
+					const studentId = this.getAttribute('data-student');
+					const daysInput = document.getElementById('iw-days-input-' + studentId);
+					const days = daysInput ? parseInt(daysInput.value) : 30;
+					
+					if(!days || days < 1) {
+						alert('Please enter a valid number of days (minimum 1)');
+						return;
+					}
+					
+					if(!confirm('Re-enrol this student with ' + days + ' days of access?')) return;
+					
+					const data = new FormData();
+					data.append('action','<?php echo esc_js( self::AJAX_REENROL ); ?>');
+					data.append('student_id', studentId);
+					data.append('days', days);
+					data.append('iw_dash_nonce', '<?php echo esc_js( $dash_nonce ); ?>');
+					fetch('<?php echo esc_url( admin_url( 'admin-ajax.php' ) ); ?>', {
+						method:'POST',
+						credentials:'same-origin',
+						body:data
+					}).then(r=>r.json()).then(d=>{
+						if(d.success){
+							alert('Student re-enrolled successfully.');
+							location.reload();
+						}else{
+							alert('Error re-enrolling student: ' + (d.data||d));
 						}
 					});
 				});
