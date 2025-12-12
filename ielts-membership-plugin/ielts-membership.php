@@ -402,11 +402,14 @@ class Impact_Websites_Student_Management {
 		
 		foreach ( $pages as $page ) {
 			$page_slug = $page->post_name;
-			// More precise matching: exact match or slug contains the default as a word
+			// More precise matching: exact match or default slug is part of the page slug
 			$is_default = false;
 			if ( $default_slug ) {
+				// Exact match or contains as whole word (e.g., 'login' in 'my-login' but not in 'loginform')
 				$is_default = ( $page_slug === $default_slug ) || 
-				              ( preg_match( '/\b' . preg_quote( $default_slug, '/' ) . '\b/', $page_slug ) );
+				              ( $page_slug === ( $default_slug . '-page' ) ) ||
+				              ( strpos( $page_slug, $default_slug . '-' ) === 0 ) ||
+				              ( strpos( $page_slug, '-' . $default_slug ) !== false );
 			}
 			$label = esc_html( $page->post_title );
 			
@@ -415,8 +418,8 @@ class Impact_Websites_Student_Management {
 				$label .= ' (recommended)';
 			}
 			
-			echo '<option value="' . esc_attr( $page->ID ) . '" ';
-			echo selected( $selected, $page->ID, false );
+			echo '<option value="' . esc_attr( $page->ID ) . '"';
+			selected( $selected, $page->ID );
 			echo '>' . $label . '</option>';
 		}
 		
