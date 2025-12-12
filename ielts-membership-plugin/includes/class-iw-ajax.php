@@ -410,6 +410,12 @@ class IW_AJAX {
             $invite_days = isset($options['default_days']) ? intval($options['default_days']) : 30;
         }
         
+        // Get course group from invite
+        $invite_group = get_post_meta($invite->ID, '_iw_invite_group', true);
+        if (empty($invite_group)) {
+            $invite_group = 'all'; // Default to all courses for legacy invites
+        }
+        
         // Calculate new expiry
         $new_expiry = time() + ($invite_days * DAY_IN_SECONDS);
         
@@ -421,6 +427,7 @@ class IW_AJAX {
         $manager_id = intval(get_post_meta($invite->ID, '_iw_invite_manager', true));
         update_user_meta($user_id, '_iw_user_manager', $manager_id ?: 0);
         update_user_meta($user_id, '_iw_user_expiry', $new_expiry);
+        update_user_meta($user_id, '_iw_user_group', $invite_group);
         delete_user_meta($user_id, '_iw_expiry_notice_sent');
         
         // Mark invite as used
@@ -428,8 +435,8 @@ class IW_AJAX {
         update_post_meta($invite->ID, '_iw_invite_used_by', $user_id);
         update_post_meta($invite->ID, '_iw_invite_used_at', time());
         
-        // Enroll in all LearnDash courses
-        $this->enroll_user_in_all_courses($user_id);
+        // Enroll in group-specific courses
+        $this->enroll_user_in_group_courses($user_id, $invite_group);
         
         // Notify partner admin
         if ($manager_id) {
@@ -443,15 +450,37 @@ class IW_AJAX {
     }
     
     /**
-     * Enroll user in all LearnDash courses
+     * Get courses for a specific group
      */
-    private function enroll_user_in_all_courses($user_id) {
-        $posts = get_posts(array('post_type' => 'sfwd-courses', 'posts_per_page' => -1));
-        if (empty($posts)) {
+    private function get_courses_for_group($group_id) {
+        // If 'all', return all courses
+        if ($group_id === 'all') {
+            $posts = get_posts(array('post_type' => 'sfwd-courses', 'posts_per_page' => -1, 'fields' => 'ids'));
+            return $posts;
+        }
+        
+        // Get course group mapping from settings
+        $course_groups = get_option('iw_course_groups_mapping', array());
+        
+        // Return courses assigned to this group
+        if (isset($course_groups[$group_id]) && is_array($course_groups[$group_id])) {
+            return $course_groups[$group_id];
+        }
+        
+        return array();
+    }
+
+    /**
+     * Enroll user in courses for a specific group
+     */
+    private function enroll_user_in_group_courses($user_id, $group_id = 'all') {
+        $course_ids = $this->get_courses_for_group($group_id);
+        
+        if (empty($course_ids)) {
             return;
         }
-        foreach ($posts as $p) {
-            $course_id = $p->ID;
+        
+        foreach ($course_ids as $course_id) {
             if (function_exists('ld_update_course_access')) {
                 ld_update_course_access($user_id, $course_id);
             } elseif (function_exists('learndash_enroll_user')) {
@@ -461,6 +490,13 @@ class IW_AJAX {
                 update_user_meta($user_id, $key, time());
             }
         }
+    }
+
+    /**
+     * Enroll user in all LearnDash courses (kept for backward compatibility)
+     */
+    private function enroll_user_in_all_courses($user_id) {
+        $this->enroll_user_in_group_courses($user_id, 'all');
     }
     
     /**
