@@ -577,7 +577,7 @@ class Impact_Websites_Student_Management {
 		// Remove all LearnDash course enrollments
 		$this->remove_user_enrollments( $student_id );
 		
-		// Remove subscriber role (set to no role)
+		// Remove all roles from user (sets to no role)
 		$user->set_role( '' );
 
 		wp_send_json_success( 'revoked' );
@@ -1485,7 +1485,7 @@ class Impact_Websites_Student_Management {
 				// Remove LearnDash enrollments
 				$this->remove_user_enrollments( $uid );
 				
-				// Remove subscriber role (set to no role)
+				// Remove all roles from user (sets to no role)
 				$user->set_role( '' );
 				
 				// Notify partner admin
