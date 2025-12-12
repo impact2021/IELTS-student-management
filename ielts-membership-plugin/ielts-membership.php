@@ -778,7 +778,8 @@ class Impact_Websites_Student_Management {
 		$at_pos = strpos( $email, '@' );
 		if ( $at_pos === false || $at_pos === 0 ) {
 			// Fallback if email doesn't have @ or @ is at start
-			$username = sanitize_user( 'user' . wp_rand( 1000, 9999 ) );
+			// Use first 8 chars of a random password for unpredictable username
+			$username = sanitize_user( 'user_' . substr( wp_generate_password( 8, false, false ), 0, 8 ) );
 		} else {
 			$username = sanitize_user( substr( $email, 0, $at_pos ) );
 		}
