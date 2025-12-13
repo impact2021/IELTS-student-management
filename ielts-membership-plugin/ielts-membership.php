@@ -1106,6 +1106,8 @@ class Impact_Websites_Student_Management {
 		}
 
 		// Generate random password without special characters (alphanumeric only)
+		// Note: Special characters are excluded per requirement to make temporary passwords
+		// easier to share and type. Users are encouraged to change passwords after first login.
 		$password = wp_generate_password( 16, false, false );
 
 		// Create the user
