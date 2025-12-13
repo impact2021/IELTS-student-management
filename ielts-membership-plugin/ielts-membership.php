@@ -66,6 +66,7 @@ class Impact_Websites_Student_Management {
 	const AJAX_UPDATE_GROUP = 'iw_update_group';
 	const AJAX_REENROL = 'iw_reenrol_student';
 	const AJAX_CREATE_USER = 'iw_create_user_manually';
+	const AJAX_BULK_UPDATE_EXPIRY = 'iw_bulk_update_expiry';
 	const DEFAULT_REENROL_DAYS = 30;
 	const NONCE_DASH = 'iw_dashboard_nonce';
 	const NONCE_REGISTER = 'iw_register_nonce';
@@ -91,6 +92,7 @@ class Impact_Websites_Student_Management {
 		add_action( 'wp_ajax_' . self::AJAX_UPDATE_GROUP, [ $this, 'ajax_update_group' ] );
 		add_action( 'wp_ajax_' . self::AJAX_REENROL, [ $this, 'ajax_reenrol_student' ] );
 		add_action( 'wp_ajax_' . self::AJAX_CREATE_USER, [ $this, 'ajax_create_user_manually' ] );
+		add_action( 'wp_ajax_' . self::AJAX_BULK_UPDATE_EXPIRY, [ $this, 'ajax_bulk_update_expiry' ] );
 
 		// Shortcodes
 		add_shortcode( 'iw_partner_dashboard', [ $this, 'shortcode_partner_dashboard' ] );
@@ -869,6 +871,73 @@ class Impact_Websites_Student_Management {
 		wp_send_json_success( 'Expiry updated' );
 	}
 
+	/* AJAX: bulk update expiry dates for multiple students */
+	public function ajax_bulk_update_expiry() {
+		if ( ! is_user_logged_in() || ! current_user_can( self::CAP_MANAGE ) ) {
+			wp_send_json_error( 'Unauthorized', 403 );
+		}
+		if ( empty( $_POST['iw_dash_nonce'] ) || ! wp_verify_nonce( wp_unslash( $_POST['iw_dash_nonce'] ), self::NONCE_DASH ) ) {
+			wp_send_json_error( 'Invalid request', 400 );
+		}
+		
+		$student_ids = isset( $_POST['student_ids'] ) ? $_POST['student_ids'] : [];
+		$expiry_date = isset( $_POST['expiry_date'] ) ? sanitize_text_field( wp_unslash( $_POST['expiry_date'] ) ) : '';
+		
+		if ( empty( $student_ids ) || ! is_array( $student_ids ) || empty( $expiry_date ) ) {
+			wp_send_json_error( 'Missing required fields', 400 );
+		}
+
+		// Convert date to timestamp (end of day)
+		$timestamp = strtotime( $expiry_date . ' 23:59:59' );
+		if ( ! $timestamp ) {
+			wp_send_json_error( 'Invalid date format', 400 );
+		}
+
+		$updated_count = 0;
+		$errors = [];
+		
+		foreach ( $student_ids as $student_id ) {
+			$student_id = intval( $student_id );
+			if ( ! $student_id ) {
+				continue;
+			}
+
+			$user = get_userdata( $student_id );
+			if ( ! $user ) {
+				$errors[] = "Invalid user ID: {$student_id}";
+				continue;
+			}
+
+			// Check if user is a subscriber (active student)
+			if ( ! in_array( 'subscriber', $user->roles ) ) {
+				$errors[] = "User {$student_id} is not an active student";
+				continue;
+			}
+			
+			// Ensure user has manager meta assigned
+			$this->ensure_user_manager( $student_id );
+
+			// Update the expiry
+			update_user_meta( $student_id, self::META_USER_EXPIRY, $timestamp );
+			
+			// Clear any expiry notice flag
+			delete_user_meta( $student_id, self::META_EXPIRY_NOTICE_SENT );
+			
+			$updated_count++;
+		}
+
+		$response = [
+			'updated_count' => $updated_count,
+			'message' => "Successfully updated expiry date for {$updated_count} student(s)"
+		];
+		
+		if ( ! empty( $errors ) ) {
+			$response['errors'] = $errors;
+		}
+
+		wp_send_json_success( $response );
+	}
+
 	/* AJAX: update student course group */
 	public function ajax_update_group() {
 		if ( ! is_user_logged_in() || ! current_user_can( self::CAP_MANAGE ) ) {
@@ -1036,8 +1105,10 @@ class Impact_Websites_Student_Management {
 			$counter++;
 		}
 
-		// Generate random password with special characters for better security
-		$password = wp_generate_password( 16, true, true );
+		// Generate random password without special characters (alphanumeric only)
+		// Note: Special characters are excluded per requirement to make temporary passwords
+		// easier to share and type. Users are encouraged to change passwords after first login.
+		$password = wp_generate_password( 16, false, false );
 
 		// Create the user
 		$user_id = wp_create_user( $username, $password, $email );
@@ -1114,8 +1185,8 @@ class Impact_Websites_Student_Management {
 	private function get_course_groups() {
 		return [
 			'all' => 'ALL Courses',
-			'ielts_general' => 'IELTS General Training',
-			'ielts_academic' => 'IELTS Academic Module',
+			'ielts_general' => 'IELTS General Training + English',
+			'ielts_academic' => 'IELTS Academic Module + English',
 			'general_english' => 'General English',
 		];
 	}
@@ -1430,12 +1501,21 @@ class Impact_Websites_Student_Management {
 					<div class="iw-search-box">
 						<input type="text" id="iw-active-search" placeholder="Search by name or email..." />
 					</div>
+					<div class="iw-bulk-controls" style="background:#f0f0f0;padding:12px;margin-bottom:10px;border:1px solid #ddd;border-radius:4px;">
+						<label style="margin-right:15px;">
+							<input type="checkbox" id="iw-select-all-students" /> <strong>Select All</strong>
+						</label>
+						<span style="margin-right:10px;">Bulk Update Expiry Date:</span>
+						<input type="date" id="iw-bulk-expiry-date" style="margin-right:10px;padding:6px;border:1px solid #ccc;border-radius:4px;" />
+						<button id="iw-bulk-update-expiry-btn" class="button" style="background:#0073aa;color:white;border:none;padding:8px 16px;border-radius:4px;cursor:pointer;">Update Selected</button>
+						<span id="iw-bulk-selected-count" style="margin-left:15px;font-weight:bold;color:#0073aa;">(0 selected)</span>
+					</div>
 					<table class="widefat" id="iw-active-students-table">
-						<thead><tr><th>Name</th><th>Email</th><th>Last Login</th><th>Course Group</th><th>Expires</th><th>Extended Access</th><th>Action</th></tr></thead>
+						<thead><tr><th><input type="checkbox" id="iw-select-all-header" title="Select all students" /></th><th>Name</th><th>Email</th><th>Last Login</th><th>Course Group</th><th>Expires</th><th>Extended Access</th><th>Action</th></tr></thead>
 						<tbody>
 						<?php
 						if ( empty( $all_students ) ) {
-							echo '<tr><td colspan="7">No active students found.</td></tr>';
+							echo '<tr><td colspan="8">No active students found.</td></tr>';
 						} else {
 							$groups = $this->get_course_groups();
 							foreach ( $all_students as $s ) {
@@ -1463,6 +1543,7 @@ class Impact_Websites_Student_Management {
 								$group_label = isset( $groups[ $user_group ] ) ? $groups[ $user_group ] : 'ALL Courses';
 								
 								echo '<tr id="iw-student-' . $student_id . '" data-firstname="' . esc_attr( strtolower( $first_name ) ) . '" data-lastname="' . esc_attr( strtolower( $last_name ) ) . '" data-email="' . esc_attr( strtolower( $email ) ) . '">';
+								echo '<td><input type="checkbox" class="iw-student-checkbox" data-student="' . $student_id . '" /></td>';
 								echo '<td>' . ( $full_name !== $email ? $full_name : '—' ) . '</td>';
 								echo '<td>' . $email . '</td>';
 								echo '<td>' . esc_html( $last_login_text ) . '</td>';
@@ -1800,6 +1881,120 @@ class Impact_Websites_Student_Management {
 					});
 				});
 			});
+
+			// Bulk expiry update functionality
+			const studentCheckboxes = document.querySelectorAll('.iw-student-checkbox');
+			const selectAllCheckbox = document.getElementById('iw-select-all-students');
+			const selectAllHeaderCheckbox = document.getElementById('iw-select-all-header');
+			const bulkUpdateBtn = document.getElementById('iw-bulk-update-expiry-btn');
+			const bulkExpiryDate = document.getElementById('iw-bulk-expiry-date');
+			const selectedCountSpan = document.getElementById('iw-bulk-selected-count');
+
+			// Update selected count
+			function updateSelectedCount() {
+				const checkedCount = document.querySelectorAll('.iw-student-checkbox:checked').length;
+				selectedCountSpan.textContent = '(' + checkedCount + ' selected)';
+			}
+
+			// Select/deselect all functionality
+			function toggleSelectAll(checked) {
+				studentCheckboxes.forEach(function(checkbox) {
+					checkbox.checked = checked;
+				});
+				updateSelectedCount();
+			}
+
+			if (selectAllCheckbox) {
+				selectAllCheckbox.addEventListener('change', function() {
+					toggleSelectAll(this.checked);
+					if (selectAllHeaderCheckbox) {
+						selectAllHeaderCheckbox.checked = this.checked;
+					}
+				});
+			}
+
+			if (selectAllHeaderCheckbox) {
+				selectAllHeaderCheckbox.addEventListener('change', function() {
+					toggleSelectAll(this.checked);
+					if (selectAllCheckbox) {
+						selectAllCheckbox.checked = this.checked;
+					}
+				});
+			}
+
+			// Update count when individual checkboxes change
+			studentCheckboxes.forEach(function(checkbox) {
+				checkbox.addEventListener('change', function() {
+					updateSelectedCount();
+					// Update select-all checkboxes if all are selected/deselected
+					const allChecked = Array.from(studentCheckboxes).every(cb => cb.checked);
+					const noneChecked = Array.from(studentCheckboxes).every(cb => !cb.checked);
+					if (selectAllCheckbox) {
+						selectAllCheckbox.checked = allChecked;
+					}
+					if (selectAllHeaderCheckbox) {
+						selectAllHeaderCheckbox.checked = allChecked;
+					}
+				});
+			});
+
+			// Bulk update button handler
+			if (bulkUpdateBtn) {
+				bulkUpdateBtn.addEventListener('click', function() {
+					const selectedIds = Array.from(document.querySelectorAll('.iw-student-checkbox:checked'))
+						.map(cb => cb.getAttribute('data-student'));
+					
+					if (selectedIds.length === 0) {
+						alert('Please select at least one student');
+						return;
+					}
+
+					const newDate = bulkExpiryDate.value;
+					if (!newDate) {
+						alert('Please select an expiry date');
+						return;
+					}
+
+					if (!confirm('Update expiry date for ' + selectedIds.length + ' student(s)?')) {
+						return;
+					}
+
+					// Disable button during processing
+					bulkUpdateBtn.disabled = true;
+					bulkUpdateBtn.textContent = 'Updating...';
+
+					const data = new FormData();
+					data.append('action', '<?php echo esc_js( self::AJAX_BULK_UPDATE_EXPIRY ); ?>');
+					data.append('expiry_date', newDate);
+					selectedIds.forEach(function(id) {
+						data.append('student_ids[]', id);
+					});
+					data.append('iw_dash_nonce', '<?php echo esc_js( $dash_nonce ); ?>');
+
+					fetch('<?php echo esc_url( admin_url( 'admin-ajax.php' ) ); ?>', {
+						method: 'POST',
+						credentials: 'same-origin',
+						body: data
+					}).then(r => r.json()).then(d => {
+						if (d.success) {
+							let message = d.data.message;
+							if (d.data.errors && d.data.errors.length > 0) {
+								message += '\n\nWarnings:\n' + d.data.errors.join('\n');
+							}
+							alert(message);
+							location.reload();
+						} else {
+							alert('Error: ' + (d.data || d));
+							bulkUpdateBtn.disabled = false;
+							bulkUpdateBtn.textContent = 'Update Selected';
+						}
+					}).catch(err => {
+						alert('Network error. Please try again.');
+						bulkUpdateBtn.disabled = false;
+						bulkUpdateBtn.textContent = 'Update Selected';
+					});
+				});
+			}
 
 			// Search functionality helper
 			function setupTableSearch(searchInputId, tableId) {
