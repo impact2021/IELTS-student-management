@@ -6,6 +6,24 @@ if (!defined('ABSPATH')) exit;
 
 $current_user = wp_get_current_user();
 $user_id = get_current_user_id();
+
+// Get user's expiry date
+$expiry_ts = intval(get_user_meta($user_id, '_iw_user_expiry', true));
+$now = time();
+$days_remaining = 0;
+$is_expired = true;
+
+if ($expiry_ts > 0) {
+    $days_remaining = max(0, ceil(($expiry_ts - $now) / DAY_IN_SECONDS));
+    $is_expired = ($expiry_ts <= $now);
+}
+
+// Determine the message to display
+if ($is_expired) {
+    $status_message = 'Your access has now expired. To add more time to your account, please enter an extension code below.';
+} else {
+    $status_message = 'You have ' . $days_remaining . ' day' . ($days_remaining != 1 ? 's' : '') . ' left. To add more time to your account, please enter an extension code below.';
+}
 ?>
 
 <style>
@@ -27,7 +45,7 @@ $user_id = get_current_user_id();
     
     <div class="iw-message iw-info">
         <p><strong>Welcome, <?php echo esc_html($current_user->display_name); ?>!</strong></p>
-        <p>You currently have limited or no access to the site. To extend your membership and regain full access to all courses, please enter an extension code below.</p>
+        <p><?php echo esc_html($status_message); ?></p>
         <p>If you don't have an extension code, please contact your partner admin to request one.</p>
     </div>
     
