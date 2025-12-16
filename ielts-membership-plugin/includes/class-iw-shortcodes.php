@@ -38,6 +38,11 @@ class IW_Shortcodes {
      * Login Form Shortcode
      */
     public function login_form($atts) {
+        // Prevent caching of login page to avoid showing cached login form after successful login
+        if ( ! headers_sent() ) {
+            nocache_headers();
+        }
+        
         if (is_user_logged_in()) {
             // If user is already logged in, redirect them to the intended destination
             $redirect = isset($_GET['redirect_to']) ? esc_url_raw(wp_unslash($_GET['redirect_to'])) : '';
