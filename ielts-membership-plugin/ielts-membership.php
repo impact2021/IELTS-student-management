@@ -8,6 +8,7 @@
  *
  * Change in 2.5:
  * - Updated welcome email for newly registered users: Changed subject line to "Your account details." and removed "Regards, Impact Websites" signature.
+ * - Fixed browser cache issue on homepage and protected pages: Added cache-control headers to prevent cached pages from causing redirect loops or showing stale content after login.
  *
  * Change in 2.2:
  * - Fixed browser cache issue: Added cache-control headers to login pages to prevent cached login form from displaying after successful login. Users no longer need to hard reload the page.
@@ -2663,6 +2664,11 @@ class Impact_Websites_Student_Management {
 
 	/* Enforce login required: allow configured login and registration pages */
 	public function enforce_login_required() {
+		// Prevent caching of pages to avoid redirect loops after login
+		if ( ! headers_sent() ) {
+			nocache_headers();
+		}
+		
 		// allow logged-in users
 		if ( is_user_logged_in() ) {
 			return;
