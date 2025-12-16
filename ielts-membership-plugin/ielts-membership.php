@@ -2491,6 +2491,11 @@ class Impact_Websites_Student_Management {
 
 	/* Shortcode: login page (styled table) with lost password link */
 	public function shortcode_login() {
+		// Prevent caching of login page to avoid showing cached login form after successful login
+		if ( ! headers_sent() ) {
+			nocache_headers();
+		}
+		
 		if ( is_user_logged_in() ) {
 			// If user is already logged in, redirect them to the intended destination
 			$options = get_option( self::OPTION_KEY, [] );
