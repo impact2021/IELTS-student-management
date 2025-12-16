@@ -2456,17 +2456,23 @@ class Impact_Websites_Student_Management {
 
 	/* Send welcome email to manually created user with login credentials */
 	private function send_welcome_email( $user_id, $username, $password, $email, $first_name, $expiry_ts ) {
-		$to = $email;
+		// Sanitize all parameters for email content (defensive)
+		$to = sanitize_email( $email );
+		$safe_username = sanitize_text_field( $username );
+		$safe_email = sanitize_email( $email );
+		$safe_first_name = sanitize_text_field( $first_name );
+		$safe_password = sanitize_text_field( $password );
+		
 		$subject = 'Your account details.';
 		$options = get_option( self::OPTION_KEY, [] );
 		$login_url = $this->get_url_from_page_setting( $options['login_page_url'] ?? 0, wp_login_url() );
 		
-		$message = "Hello {$first_name},\n\n";
+		$message = "Hello {$safe_first_name},\n\n";
 		$message .= "Your account has been created successfully!\n\n";
 		$message .= "Your login details:\n";
-		$message .= "Username: {$username}\n";
-		$message .= "Email: {$email}\n";
-		$message .= "Temporary Password: {$password}\n\n";
+		$message .= "Username: {$safe_username}\n";
+		$message .= "Email: {$safe_email}\n";
+		$message .= "Temporary Password: {$safe_password}\n\n";
 		$message .= "Login URL: {$login_url}\n\n";
 		$message .= "Your access expires on: " . $this->format_date( $expiry_ts ) . "\n\n";
 		$message .= "You have been enrolled in all available courses. Please log in to get started.\n\n";
