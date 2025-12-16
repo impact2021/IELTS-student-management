@@ -1,10 +1,15 @@
 <?php
 /**
- * Plugin Name: Impact Websites Student Management
+ * Plugin Name: IELTStestONLINE Student Management
  * Description: Partner-admin invite system for LearnDash. Shared partner dashboard (global pool) so multiple partner admins see the same codes and users. Single-use invite codes, auto-enrol in ALL LearnDash courses, site-wide login enforcement with public registration.
- * Version: 2.5
- * Author: Impact Websites
+ * Version: 2.6
+ * Author: IELTStestONLINE
  * License: GPLv2 or later
+ *
+ * Change in 2.6:
+ * - Updated version to 2.6.
+ * - Changed author from Impact Websites to IELTStestONLINE.
+ * - Removed "Regards, Impact Websites" sign-off from all email notifications to partner admins.
  *
  * Change in 2.5:
  * - Updated welcome email for newly registered users: Changed subject line to "Your account details." and removed "Regards, Impact Websites" signature.
@@ -43,7 +48,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 // Define plugin constants
 define( 'IW_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'IW_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
-define( 'IW_PLUGIN_VERSION', '2.5' );
+define( 'IW_PLUGIN_VERSION', '2.6' );
 
 // Load required classes
 require_once IW_PLUGIN_DIR . 'includes/class-iw-api-client.php';
@@ -729,8 +734,7 @@ class Impact_Websites_Student_Management {
 				$message = "Hello " . $display_name . ",\n\n";
 				$message .= "You have created " . count( $codes ) . " invite code(s), each allowing " . $days . " days of access:\n\n";
 				$message .= implode( "\n", $codes ) . "\n\n";
-				$message .= "Share these codes with your students.\n\n";
-				$message .= "Regards,\nImpact Websites";
+				$message .= "Share these codes with your students.";
 				$result = wp_mail( $partner->user_email, $subject, $message );
 				// Note: Email send failure is non-critical, codes are still created successfully
 			}
@@ -2391,8 +2395,7 @@ class Impact_Websites_Student_Management {
 		$message .= "Username: " . $user->user_login . "\n";
 		$message .= "Email: " . $user->user_email . "\n";
 		$message .= "Expires: " . $expiry_text . "\n\n";
-		$message .= "They have been enrolled in all courses.\n\n";
-		$message .= "Regards,\nImpact Websites";
+		$message .= "They have been enrolled in all courses.";
 		wp_mail( $to, $subject, $message );
 	}
 
@@ -2408,8 +2411,7 @@ class Impact_Websites_Student_Management {
 		}
 		$subject = sprintf( 'User expiring soon: %s', $user->user_login );
 		$message = "Hello " . $partner->display_name . ",\n\n";
-		$message .= sprintf( "Reminder: the user %s (%s) you manage is expiring on %s.\n\n", $user->user_login, $user->user_email, $this->format_date( $expiry_ts ) );
-		$message .= "Regards,\nImpact Websites";
+		$message .= sprintf( "Reminder: the user %s (%s) you manage is expiring on %s.", $user->user_login, $user->user_email, $this->format_date( $expiry_ts ) );
 		wp_mail( $to, $subject, $message );
 	}
 
@@ -2426,8 +2428,7 @@ class Impact_Websites_Student_Management {
 		$user_identifier = $user_data ? $user_data->user_login : "User ID {$user_id}";
 		$subject = sprintf( 'User expired: %s', $user_identifier );
 		$message = "Hello " . $partner->display_name . ",\n\n";
-		$message .= "The user {$user_identifier} expired on " . $this->format_date( $expiry_ts ) . " and has been removed/updated according to site policy.\n\n";
-		$message .= "Regards,\nImpact Websites";
+		$message .= "The user {$user_identifier} expired on " . $this->format_date( $expiry_ts ) . " and has been removed/updated according to site policy.";
 		wp_mail( $to, $subject, $message );
 	}
 
@@ -2474,8 +2475,7 @@ class Impact_Websites_Student_Management {
 		$message .= "Username: {$username}\n";
 		$message .= "Email: {$email}\n";
 		$message .= "Expires: {$expiry_text}\n\n";
-		$message .= "The user has been enrolled in all courses and will receive a welcome email with their login credentials.\n\n";
-		$message .= "Regards,\nImpact Websites";
+		$message .= "The user has been enrolled in all courses and will receive a welcome email with their login credentials.";
 		wp_mail( $to, $subject, $message );
 	}
 

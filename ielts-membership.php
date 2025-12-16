@@ -1,10 +1,15 @@
 <?php
 /**
- * Plugin Name: Impact Websites Student Management
+ * Plugin Name: IELTStestONLINE Student Management
  * Description: Partner-admin invite system for LearnDash. Shared partner dashboard (global pool) so multiple partner admins see the same codes and users. Single-use invite codes, auto-enrol in ALL LearnDash courses, site-wide login enforcement with public registration.
- * Version: 2.5
- * Author: Impact Websites
+ * Version: 2.6
+ * Author: IELTStestONLINE
  * License: GPLv2 or later
+ *
+ * Change in 2.6:
+ * - Updated version to 2.6.
+ * - Changed author from Impact Websites to IELTStestONLINE.
+ * - Removed "Regards, Impact Websites" sign-off from all email notifications to partner admins.
  *
  * Change in 2.5:
  * - Updated wrapper plugin to version 2.5 to align with main plugin versioning.
@@ -59,7 +64,7 @@ function iw_wrapper_missing_directory_notice() {
     }
     ?>
     <div class="notice notice-error">
-        <p><strong>Impact Websites Student Management:</strong> Plugin directory structure is incomplete. Please ensure the 'ielts-membership-plugin' directory exists within the plugin folder.</p>
+        <p><strong>IELTStestONLINE Student Management:</strong> Plugin directory structure is incomplete. Please ensure the 'ielts-membership-plugin' directory exists within the plugin folder.</p>
     </div>
     <?php
 }

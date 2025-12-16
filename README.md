@@ -1,4 +1,4 @@
-# IELTS Student Management - Impact Websites Student Management Plugin
+# IELTS Student Management - IELTStestONLINE Student Management Plugin
 
 A comprehensive partner-admin invite system for LearnDash with shared partner dashboard functionality.
 
