@@ -2,9 +2,12 @@
 /**
  * Plugin Name: Impact Websites Student Management
  * Description: Partner-admin invite system for LearnDash. Shared partner dashboard (global pool) so multiple partner admins see the same codes and users. Single-use invite codes, auto-enrol in ALL LearnDash courses, site-wide login enforcement with public registration.
- * Version: 2.2
+ * Version: 2.5
  * Author: Impact Websites
  * License: GPLv2 or later
+ *
+ * Change in 2.5:
+ * - Updated welcome email for newly registered users: Changed subject line to "Your account details." and removed "Regards, Impact Websites" signature.
  *
  * Change in 2.2:
  * - Fixed browser cache issue: Added cache-control headers to login pages to prevent cached login form from displaying after successful login. Users no longer need to hard reload the page.
@@ -39,7 +42,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 // Define plugin constants
 define( 'IW_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'IW_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
-define( 'IW_PLUGIN_VERSION', '2.2' );
+define( 'IW_PLUGIN_VERSION', '2.5' );
 
 // Load required classes
 require_once IW_PLUGIN_DIR . 'includes/class-iw-api-client.php';
@@ -2430,7 +2433,7 @@ class Impact_Websites_Student_Management {
 	/* Send welcome email to manually created user with login credentials */
 	private function send_welcome_email( $user_id, $username, $password, $email, $first_name, $expiry_ts ) {
 		$to = $email;
-		$subject = 'Welcome to IELTS Student Management - Your Account Details';
+		$subject = 'Your account details.';
 		$options = get_option( self::OPTION_KEY, [] );
 		$login_url = $this->get_url_from_page_setting( $options['login_page_url'] ?? 0, wp_login_url() );
 		
@@ -2446,8 +2449,7 @@ class Impact_Websites_Student_Management {
 		$message .= "IMPORTANT SECURITY NOTICE:\n";
 		$message .= "- This email contains your temporary password. Please delete this email after changing your password.\n";
 		$message .= "- We strongly recommend changing your password immediately after your first login.\n";
-		$message .= "- Keep your password secure and do not share it with anyone.\n\n";
-		$message .= "Regards,\nImpact Websites";
+		$message .= "- Keep your password secure and do not share it with anyone.";
 		
 		wp_mail( $to, $subject, $message );
 	}
