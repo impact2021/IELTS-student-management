@@ -1161,7 +1161,7 @@ class Impact_Websites_Student_Management {
 		$this->send_welcome_email( $user_id, $username, $password, $email, $first_name, $expiry_ts );
 
 		// Check if admin wants a copy of the welcome email
-		$send_welcome_copy = isset( $_POST['send_welcome_copy'] ) && $_POST['send_welcome_copy'] === 'yes';
+		$send_welcome_copy = isset( $_POST['send_welcome_copy'] ) && sanitize_text_field( wp_unslash( $_POST['send_welcome_copy'] ) ) === 'yes';
 
 		// Notify partner admin
 		$this->notify_partner_manual_user_created( $partner_id, $user_id, $username, $email, $expiry_ts );
@@ -2480,19 +2480,25 @@ class Impact_Websites_Student_Management {
 
 	/* Send copy of welcome email to admin */
 	private function send_welcome_email_copy_to_admin( $admin_email, $username, $password, $email, $first_name, $expiry_ts ) {
-		$to = $admin_email;
+		// Sanitize all parameters for email content (defensive)
+		$to = sanitize_email( $admin_email );
+		$safe_username = sanitize_text_field( $username );
+		$safe_email = sanitize_email( $email );
+		$safe_first_name = sanitize_text_field( $first_name );
+		$safe_password = sanitize_text_field( $password );
+		
 		$subject = 'Copy: Your account details.';
 		$options = get_option( self::OPTION_KEY, [] );
 		$login_url = $this->get_url_from_page_setting( $options['login_page_url'] ?? 0, wp_login_url() );
 		
-		$message = "This is a copy of the welcome email sent to {$email}.\n\n";
+		$message = "This is a copy of the welcome email sent to {$safe_email}.\n\n";
 		$message .= "---\n\n";
-		$message .= "Hello {$first_name},\n\n";
+		$message .= "Hello {$safe_first_name},\n\n";
 		$message .= "Your account has been created successfully!\n\n";
 		$message .= "Your login details:\n";
-		$message .= "Username: {$username}\n";
-		$message .= "Email: {$email}\n";
-		$message .= "Temporary Password: {$password}\n\n";
+		$message .= "Username: {$safe_username}\n";
+		$message .= "Email: {$safe_email}\n";
+		$message .= "Temporary Password: {$safe_password}\n\n";
 		$message .= "Login URL: {$login_url}\n\n";
 		$message .= "Your access expires on: " . $this->format_date( $expiry_ts ) . "\n\n";
 		$message .= "You have been enrolled in all available courses. Please log in to get started.\n\n";
