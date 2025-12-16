@@ -2,9 +2,12 @@
 /**
  * Plugin Name: Impact Websites Student Management
  * Description: Partner-admin invite system for LearnDash. Shared partner dashboard (global pool) so multiple partner admins see the same codes and users. Single-use invite codes, auto-enrol in ALL LearnDash courses, site-wide login enforcement with public registration.
- * Version: 2.1
+ * Version: 2.2
  * Author: Impact Websites
  * License: GPLv2 or later
+ *
+ * Change in 2.2:
+ * - Fixed browser cache issue: Added cache-control headers to login pages to prevent cached login form from displaying after successful login. Users no longer need to hard reload the page.
  *
  * Change in 2.1:
  * - Fixed login redirect issue: When already logged in users visit login page with redirect_to parameter, they are now automatically redirected to the intended destination instead of showing a message.
@@ -36,7 +39,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 // Define plugin constants
 define( 'IW_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'IW_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
-define( 'IW_PLUGIN_VERSION', '2.1' );
+define( 'IW_PLUGIN_VERSION', '2.2' );
 
 // Load required classes
 require_once IW_PLUGIN_DIR . 'includes/class-iw-api-client.php';
