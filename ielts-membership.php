@@ -2,9 +2,13 @@
 /**
  * Plugin Name: Impact Websites Student Management
  * Description: Partner-admin invite system for LearnDash. Shared partner dashboard (global pool) so multiple partner admins see the same codes and users. Single-use invite codes, auto-enrol in ALL LearnDash courses, site-wide login enforcement with public registration.
- * Version: 2.0
+ * Version: 2.5
  * Author: Impact Websites
  * License: GPLv2 or later
+ *
+ * Change in 2.5:
+ * - Updated wrapper plugin to version 2.5 to align with main plugin versioning.
+ * - Fixed browser cache issue on homepage: Added cache-control headers to prevent cached pages from causing redirect loops for first-time visitors.
  *
  * Change in 2.0:
  * - Updated wrapper plugin to version 2.0 to align with main plugin versioning.
