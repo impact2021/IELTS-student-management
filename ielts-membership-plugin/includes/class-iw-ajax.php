@@ -528,8 +528,7 @@ class IW_AJAX {
         $expiry_text = date_i18n('d/m/Y', $new_expiry);
         $message = "Hello " . $partner->display_name . ",\n\n";
         $message .= sprintf("User %s (%s) has extended their membership using code %s.\n\n", $user->user_login, $user->user_email, $code);
-        $message .= "New expiry date: " . $expiry_text . "\n\n";
-        $message .= "Regards,\nImpact Websites";
+        $message .= "New expiry date: " . $expiry_text . ".";
         wp_mail($to, $subject, $message);
     }
 }
