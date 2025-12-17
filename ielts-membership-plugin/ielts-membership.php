@@ -1891,11 +1891,12 @@ class Impact_Websites_Student_Management {
 			// Resend welcome email to student
 			document.querySelectorAll('.iw-resend-student').forEach(function(btn){
 				btn.addEventListener('click', function(){
+					const button = this;
 					if(!confirm('Resend welcome email to student? This will generate a new temporary password and reset their current password.')) return;
-					const student = this.getAttribute('data-student');
-					const originalText = this.textContent;
-					this.disabled = true;
-					this.textContent = 'Sending...';
+					const student = button.getAttribute('data-student');
+					const originalText = button.textContent;
+					button.disabled = true;
+					button.textContent = 'Sending...';
 					
 					const data = new FormData();
 					data.append('action','<?php echo self::AJAX_RESEND_WELCOME_STUDENT; ?>');
@@ -1911,25 +1912,26 @@ class Impact_Websites_Student_Management {
 							location.reload();
 						}else{
 							alert('Error sending email: ' + (d.data||d));
-							this.disabled = false;
-							this.textContent = originalText;
+							button.disabled = false;
+							button.textContent = originalText;
 						}
 					}).catch(err=>{
 						alert('Network error. Please try again.');
-						this.disabled = false;
-						this.textContent = originalText;
+						button.disabled = false;
+						button.textContent = originalText;
 					});
-				}.bind(btn));
+				});
 			});
 
 			// Resend welcome email to admin
 			document.querySelectorAll('.iw-resend-admin').forEach(function(btn){
 				btn.addEventListener('click', function(){
+					const button = this;
 					if(!confirm('Resend welcome email copy to you? This will generate a new temporary password and reset the student\'s current password.')) return;
-					const student = this.getAttribute('data-student');
-					const originalText = this.textContent;
-					this.disabled = true;
-					this.textContent = 'Sending...';
+					const student = button.getAttribute('data-student');
+					const originalText = button.textContent;
+					button.disabled = true;
+					button.textContent = 'Sending...';
 					
 					const data = new FormData();
 					data.append('action','<?php echo self::AJAX_RESEND_WELCOME_ADMIN; ?>');
@@ -1945,15 +1947,15 @@ class Impact_Websites_Student_Management {
 							location.reload();
 						}else{
 							alert('Error sending email: ' + (d.data||d));
-							this.disabled = false;
-							this.textContent = originalText;
+							button.disabled = false;
+							button.textContent = originalText;
 						}
 					}).catch(err=>{
 						alert('Network error. Please try again.');
-						this.disabled = false;
-						this.textContent = originalText;
+						button.disabled = false;
+						button.textContent = originalText;
 					});
-				}.bind(btn));
+				});
 			});
 
 			// Delete code
