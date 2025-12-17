@@ -2,9 +2,13 @@
 /**
  * Plugin Name: IELTStestONLINE Student Management
  * Description: Partner-admin invite system for LearnDash. Shared partner dashboard (global pool) so multiple partner admins see the same codes and users. Single-use invite codes, auto-enrol in ALL LearnDash courses, site-wide login enforcement with public registration.
- * Version: 2.6
+ * Version: 2.7
  * Author: IELTStestONLINE
  * License: GPLv2 or later
+ *
+ * Change in 2.7:
+ * - Added checkbox to 'create user manually' form to send a copy of the welcome email to the creating admin (checked by default).
+ * - Admin receives both the normal 'New user created' notification AND a copy of the welcome email sent to the new user.
  *
  * Change in 2.6:
  * - Updated version to 2.6.
@@ -48,7 +52,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 // Define plugin constants
 define( 'IW_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'IW_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
-define( 'IW_PLUGIN_VERSION', '2.6' );
+define( 'IW_PLUGIN_VERSION', '2.7' );
 
 // Load required classes
 require_once IW_PLUGIN_DIR . 'includes/class-iw-api-client.php';
@@ -1156,8 +1160,19 @@ class Impact_Websites_Student_Management {
 		// Send welcome email with credentials
 		$this->send_welcome_email( $user_id, $username, $password, $email, $first_name, $expiry_ts );
 
+		// Check if admin wants a copy of the welcome email
+		$send_welcome_copy = isset( $_POST['send_welcome_copy'] ) && sanitize_text_field( wp_unslash( $_POST['send_welcome_copy'] ) ) === 'yes';
+
 		// Notify partner admin
 		$this->notify_partner_manual_user_created( $partner_id, $user_id, $username, $email, $expiry_ts );
+
+		// Send copy of welcome email to admin if requested
+		if ( $send_welcome_copy ) {
+			$partner = get_userdata( $partner_id );
+			if ( $partner && $partner->user_email ) {
+				$this->send_welcome_email_copy_to_admin( $partner->user_email, $username, $password, $email, $first_name, $expiry_ts );
+			}
+		}
 
 		wp_send_json_success( [
 			'message' => 'User created successfully',
@@ -1412,6 +1427,13 @@ class Impact_Websites_Student_Management {
 								?>
 							</select>
 							<p class="iw-note" style="margin:6px 0 0;">Select which courses this user can access.</p>
+						</td>
+					</tr>
+					<tr>
+						<th>Email welcome copy to me?</th>
+						<td>
+							<label><input type="checkbox" name="send_welcome_copy" value="yes" checked /> Yes, send me a copy of the welcome email</label>
+							<p class="iw-note" style="margin:6px 0 0;">You will receive both the normal 'New user created' notification and a copy of the welcome email sent to the user.</p>
 						</td>
 					</tr>
 					<tr>
@@ -2434,17 +2456,55 @@ class Impact_Websites_Student_Management {
 
 	/* Send welcome email to manually created user with login credentials */
 	private function send_welcome_email( $user_id, $username, $password, $email, $first_name, $expiry_ts ) {
-		$to = $email;
+		// Sanitize all parameters for email content (defensive)
+		$to = sanitize_email( $email );
+		$safe_username = sanitize_text_field( $username );
+		$safe_email = sanitize_email( $email );
+		$safe_first_name = sanitize_text_field( $first_name );
+		$safe_password = sanitize_text_field( $password );
+		
 		$subject = 'Your account details.';
 		$options = get_option( self::OPTION_KEY, [] );
 		$login_url = $this->get_url_from_page_setting( $options['login_page_url'] ?? 0, wp_login_url() );
 		
-		$message = "Hello {$first_name},\n\n";
+		$message = "Hello {$safe_first_name},\n\n";
 		$message .= "Your account has been created successfully!\n\n";
 		$message .= "Your login details:\n";
-		$message .= "Username: {$username}\n";
-		$message .= "Email: {$email}\n";
-		$message .= "Temporary Password: {$password}\n\n";
+		$message .= "Username: {$safe_username}\n";
+		$message .= "Email: {$safe_email}\n";
+		$message .= "Temporary Password: {$safe_password}\n\n";
+		$message .= "Login URL: {$login_url}\n\n";
+		$message .= "Your access expires on: " . $this->format_date( $expiry_ts ) . "\n\n";
+		$message .= "You have been enrolled in all available courses. Please log in to get started.\n\n";
+		$message .= "IMPORTANT SECURITY NOTICE:\n";
+		$message .= "- This email contains your temporary password. Please delete this email after changing your password.\n";
+		$message .= "- We strongly recommend changing your password immediately after your first login.\n";
+		$message .= "- Keep your password secure and do not share it with anyone.";
+		
+		wp_mail( $to, $subject, $message );
+	}
+
+	/* Send copy of welcome email to admin */
+	private function send_welcome_email_copy_to_admin( $admin_email, $username, $password, $email, $first_name, $expiry_ts ) {
+		// Sanitize all parameters for email content (defensive)
+		$to = sanitize_email( $admin_email );
+		$safe_username = sanitize_text_field( $username );
+		$safe_email = sanitize_email( $email );
+		$safe_first_name = sanitize_text_field( $first_name );
+		$safe_password = sanitize_text_field( $password );
+		
+		$subject = 'Copy: Your account details.';
+		$options = get_option( self::OPTION_KEY, [] );
+		$login_url = $this->get_url_from_page_setting( $options['login_page_url'] ?? 0, wp_login_url() );
+		
+		$message = "This is a copy of the welcome email sent to {$safe_email}.\n\n";
+		$message .= "---\n\n";
+		$message .= "Hello {$safe_first_name},\n\n";
+		$message .= "Your account has been created successfully!\n\n";
+		$message .= "Your login details:\n";
+		$message .= "Username: {$safe_username}\n";
+		$message .= "Email: {$safe_email}\n";
+		$message .= "Temporary Password: {$safe_password}\n\n";
 		$message .= "Login URL: {$login_url}\n\n";
 		$message .= "Your access expires on: " . $this->format_date( $expiry_ts ) . "\n\n";
 		$message .= "You have been enrolled in all available courses. Please log in to get started.\n\n";
