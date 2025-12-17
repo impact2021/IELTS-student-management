@@ -1187,7 +1187,7 @@ class Impact_Websites_Student_Management {
 	}
 
 	/**
-	 * AJAX handler: Resend welcome email to student with new password
+	 * AJAX handler: Resend welcome email to student with password reset link
 	 */
 	public function ajax_resend_welcome_student() {
 		if ( ! is_user_logged_in() || ! current_user_can( self::CAP_MANAGE ) ) {
@@ -1223,22 +1223,16 @@ class Impact_Websites_Student_Management {
 			$first_name = $username;
 		}
 		
-		// Generate new temporary password
-		$new_password = wp_generate_password( 16, false, false );
-		
-		// Update user password
-		wp_set_password( $new_password, $student_id );
-		
-		// Send welcome email with new password
-		$this->send_welcome_email( $student_id, $username, $new_password, $email, $first_name, $exp );
+		// Send welcome email with password reset link (does not reset current password)
+		$this->send_resend_welcome_email( $student_id, $username, $email, $first_name, $exp );
 		
 		wp_send_json_success( [
-			'message' => 'Welcome email sent to student with new temporary password'
+			'message' => 'Welcome email sent to student with password reset link'
 		] );
 	}
 
 	/**
-	 * AJAX handler: Resend welcome email copy to partner admin with new password
+	 * AJAX handler: Resend welcome email copy to partner admin with password reset link
 	 */
 	public function ajax_resend_welcome_admin() {
 		if ( ! is_user_logged_in() || ! current_user_can( self::CAP_MANAGE ) ) {
@@ -1281,17 +1275,11 @@ class Impact_Websites_Student_Management {
 			$first_name = $username;
 		}
 		
-		// Generate new temporary password
-		$new_password = wp_generate_password( 16, false, false );
-		
-		// Update user password
-		wp_set_password( $new_password, $student_id );
-		
-		// Send welcome email copy to admin
-		$this->send_welcome_email_copy_to_admin( $partner->user_email, $username, $new_password, $email, $first_name, $exp );
+		// Send welcome email copy to admin with password reset link (does not reset current password)
+		$this->send_resend_welcome_email_copy_to_admin( $partner->user_email, $username, $email, $first_name, $exp );
 		
 		wp_send_json_success( [
-			'message' => 'Welcome email copy sent to admin with new temporary password'
+			'message' => 'Welcome email copy sent to admin with password reset link'
 		] );
 	}
 
@@ -1892,7 +1880,7 @@ class Impact_Websites_Student_Management {
 			document.querySelectorAll('.iw-resend-student').forEach(function(btn){
 				btn.addEventListener('click', function(){
 					const button = this;
-					if(!confirm('Resend welcome email to student? This will generate a new temporary password and reset their current password.')) return;
+					if(!confirm('Resend welcome email to student? This will send their account information with a password reset link. Their current password will NOT be changed.')) return;
 					const student = button.getAttribute('data-student');
 					const originalText = button.textContent;
 					button.disabled = true;
@@ -1908,7 +1896,7 @@ class Impact_Websites_Student_Management {
 						body:data
 					}).then(r=>r.json()).then(d=>{
 						if(d.success){
-							alert('Welcome email sent to student with new temporary password.');
+							alert('Welcome email sent to student with password reset link.');
 							location.reload();
 						}else{
 							alert('Error sending email: ' + (d.data||d));
@@ -1927,7 +1915,7 @@ class Impact_Websites_Student_Management {
 			document.querySelectorAll('.iw-resend-admin').forEach(function(btn){
 				btn.addEventListener('click', function(){
 					const button = this;
-					if(!confirm('Resend welcome email copy to you? This will generate a new temporary password and reset the student\'s current password.')) return;
+					if(!confirm('Resend welcome email copy to you? This will send account information with a password reset link. The student\'s current password will NOT be changed.')) return;
 					const student = button.getAttribute('data-student');
 					const originalText = button.textContent;
 					button.disabled = true;
@@ -1943,7 +1931,7 @@ class Impact_Websites_Student_Management {
 						body:data
 					}).then(r=>r.json()).then(d=>{
 						if(d.success){
-							alert('Welcome email copy sent to your email with new temporary password.');
+							alert('Welcome email copy sent to your email with password reset link.');
 							location.reload();
 						}else{
 							alert('Error sending email: ' + (d.data||d));
@@ -2728,6 +2716,84 @@ class Impact_Websites_Student_Management {
 		$message .= "Email: {$email}\n";
 		$message .= "Expires: {$expiry_text}\n\n";
 		$message .= "The user has been enrolled in all courses and will receive a welcome email with their login credentials.";
+		wp_mail( $to, $subject, $message );
+	}
+
+	/* Send resend welcome email to student with password reset link (does not reset current password) */
+	private function send_resend_welcome_email( $user_id, $username, $email, $first_name, $expiry_ts ) {
+		// Sanitize all parameters for email content (defensive)
+		$to = sanitize_email( $email );
+		$safe_username = sanitize_text_field( $username );
+		$safe_email = sanitize_email( $email );
+		$safe_first_name = sanitize_text_field( $first_name );
+		
+		$subject = 'Your account information';
+		$options = get_option( self::OPTION_KEY, [] );
+		$login_url = $this->get_url_from_page_setting( $options['login_page_url'] ?? 0, wp_login_url() );
+		
+		// Generate password reset link
+		$reset_key = get_password_reset_key( get_userdata( $user_id ) );
+		if ( is_wp_error( $reset_key ) ) {
+			// If we can't generate a reset key, fall back to lost password URL
+			$reset_url = wp_lostpassword_url();
+		} else {
+			$reset_url = network_site_url( "wp-login.php?action=rp&key=$reset_key&login=" . rawurlencode( $safe_username ), 'login' );
+		}
+		
+		$message = "Hello {$safe_first_name},\n\n";
+		$message .= "You requested your account information.\n\n";
+		$message .= "Your login details:\n";
+		$message .= "Username: {$safe_username}\n";
+		$message .= "Email: {$safe_email}\n\n";
+		$message .= "Login URL: {$login_url}\n\n";
+		$message .= "If you have forgotten your password, you can reset it using this link:\n";
+		$message .= "{$reset_url}\n\n";
+		$message .= "Your access expires on: " . $this->format_date( $expiry_ts ) . "\n\n";
+		$message .= "You are enrolled in all available courses.";
+		
+		wp_mail( $to, $subject, $message );
+	}
+
+	/* Send copy of resend welcome email to admin with password reset link (does not reset current password) */
+	private function send_resend_welcome_email_copy_to_admin( $admin_email, $username, $email, $first_name, $expiry_ts ) {
+		// Sanitize all parameters for email content (defensive)
+		$to = sanitize_email( $admin_email );
+		$safe_username = sanitize_text_field( $username );
+		$safe_email = sanitize_email( $email );
+		$safe_first_name = sanitize_text_field( $first_name );
+		
+		$subject = 'Copy: Account information for ' . $safe_username;
+		$options = get_option( self::OPTION_KEY, [] );
+		$login_url = $this->get_url_from_page_setting( $options['login_page_url'] ?? 0, wp_login_url() );
+		
+		// Get the user for password reset key generation
+		$user = get_user_by( 'login', $username );
+		if ( ! $user ) {
+			return; // Can't send email if user doesn't exist
+		}
+		
+		// Generate password reset link
+		$reset_key = get_password_reset_key( $user );
+		if ( is_wp_error( $reset_key ) ) {
+			// If we can't generate a reset key, fall back to lost password URL
+			$reset_url = wp_lostpassword_url();
+		} else {
+			$reset_url = network_site_url( "wp-login.php?action=rp&key=$reset_key&login=" . rawurlencode( $safe_username ), 'login' );
+		}
+		
+		$message = "This is a copy of the account information email sent to {$safe_email}.\n\n";
+		$message .= "---\n\n";
+		$message .= "Hello {$safe_first_name},\n\n";
+		$message .= "You requested your account information.\n\n";
+		$message .= "Your login details:\n";
+		$message .= "Username: {$safe_username}\n";
+		$message .= "Email: {$safe_email}\n\n";
+		$message .= "Login URL: {$login_url}\n\n";
+		$message .= "If you have forgotten your password, you can reset it using this link:\n";
+		$message .= "{$reset_url}\n\n";
+		$message .= "Your access expires on: " . $this->format_date( $expiry_ts ) . "\n\n";
+		$message .= "You are enrolled in all available courses.";
+		
 		wp_mail( $to, $subject, $message );
 	}
 
