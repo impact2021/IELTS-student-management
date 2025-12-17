@@ -2741,7 +2741,15 @@ class Impact_Websites_Student_Management {
 		return network_site_url( "wp-login.php?action=rp&key=$reset_key&login=" . rawurlencode( $username ), 'login' );
 	}
 
-	/* Send resend welcome email to student with password reset link (does not reset current password) */
+	/**
+	 * Send resend welcome email to student with password reset link (does not reset current password)
+	 * 
+	 * @param int $user_id The user ID
+	 * @param string $username The username
+	 * @param string $email The email address
+	 * @param string $first_name The first name
+	 * @param int $expiry_ts The expiry timestamp
+	 */
 	private function send_resend_welcome_email( $user_id, $username, $email, $first_name, $expiry_ts ) {
 		// Sanitize all parameters for email content (defensive)
 		$to = sanitize_email( $email );
@@ -2771,7 +2779,15 @@ class Impact_Websites_Student_Management {
 		wp_mail( $to, $subject, $message );
 	}
 
-	/* Send copy of resend welcome email to admin with password reset link (does not reset current password) */
+	/**
+	 * Send copy of resend welcome email to admin with password reset link (does not reset current password)
+	 * 
+	 * @param string $admin_email The admin email address
+	 * @param string $username The username
+	 * @param string $email The student email address
+	 * @param string $first_name The first name
+	 * @param int $expiry_ts The expiry timestamp
+	 */
 	private function send_resend_welcome_email_copy_to_admin( $admin_email, $username, $email, $first_name, $expiry_ts ) {
 		// Sanitize all parameters for email content (defensive)
 		$to = sanitize_email( $admin_email );
