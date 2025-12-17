@@ -2725,7 +2725,7 @@ class Impact_Websites_Student_Management {
 
 	/**
 	 * Generate password reset URL for a user
-	 * 
+	 *
 	 * @param WP_User|false $user The user object
 	 * @param string $username The username for URL encoding
 	 * @return string The password reset URL or lost password URL on error
@@ -2747,7 +2747,7 @@ class Impact_Websites_Student_Management {
 
 	/**
 	 * Generate account information email content with password reset link
-	 * 
+	 *
 	 * @param string $safe_username Sanitized username
 	 * @param string $safe_email Sanitized email address
 	 * @param string $safe_first_name Sanitized first name
@@ -2773,7 +2773,7 @@ class Impact_Websites_Student_Management {
 
 	/**
 	 * Send resend welcome email to student with password reset link (does not reset current password)
-	 * 
+	 *
 	 * @param int $user_id The user ID
 	 * @param string $username The username
 	 * @param string $email The email address
@@ -2803,7 +2803,7 @@ class Impact_Websites_Student_Management {
 
 	/**
 	 * Send copy of resend welcome email to admin with password reset link (does not reset current password)
-	 * 
+	 *
 	 * @param string $admin_email The admin email address
 	 * @param int $user_id The user ID
 	 * @param string $username The username
