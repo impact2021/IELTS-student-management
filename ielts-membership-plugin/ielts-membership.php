@@ -2719,6 +2719,28 @@ class Impact_Websites_Student_Management {
 		wp_mail( $to, $subject, $message );
 	}
 
+	/**
+	 * Generate password reset URL for a user
+	 * 
+	 * @param WP_User|false $user The user object
+	 * @param string $username The username for URL encoding
+	 * @return string The password reset URL or lost password URL on error
+	 */
+	private function generate_password_reset_url( $user, $username ) {
+		if ( ! $user || ! ( $user instanceof WP_User ) ) {
+			// If user doesn't exist or is invalid, return lost password URL
+			return wp_lostpassword_url();
+		}
+		
+		$reset_key = get_password_reset_key( $user );
+		if ( is_wp_error( $reset_key ) ) {
+			// If we can't generate a reset key, fall back to lost password URL
+			return wp_lostpassword_url();
+		}
+		
+		return network_site_url( "wp-login.php?action=rp&key=$reset_key&login=" . rawurlencode( $username ), 'login' );
+	}
+
 	/* Send resend welcome email to student with password reset link (does not reset current password) */
 	private function send_resend_welcome_email( $user_id, $username, $email, $first_name, $expiry_ts ) {
 		// Sanitize all parameters for email content (defensive)
@@ -2731,14 +2753,9 @@ class Impact_Websites_Student_Management {
 		$options = get_option( self::OPTION_KEY, [] );
 		$login_url = $this->get_url_from_page_setting( $options['login_page_url'] ?? 0, wp_login_url() );
 		
-		// Generate password reset link
-		$reset_key = get_password_reset_key( get_userdata( $user_id ) );
-		if ( is_wp_error( $reset_key ) ) {
-			// If we can't generate a reset key, fall back to lost password URL
-			$reset_url = wp_lostpassword_url();
-		} else {
-			$reset_url = network_site_url( "wp-login.php?action=rp&key=$reset_key&login=" . rawurlencode( $safe_username ), 'login' );
-		}
+		// Get user and generate password reset link
+		$user = get_userdata( $user_id );
+		$reset_url = $this->generate_password_reset_url( $user, $safe_username );
 		
 		$message = "Hello {$safe_first_name},\n\n";
 		$message .= "You requested your account information.\n\n";
@@ -2773,13 +2790,7 @@ class Impact_Websites_Student_Management {
 		}
 		
 		// Generate password reset link
-		$reset_key = get_password_reset_key( $user );
-		if ( is_wp_error( $reset_key ) ) {
-			// If we can't generate a reset key, fall back to lost password URL
-			$reset_url = wp_lostpassword_url();
-		} else {
-			$reset_url = network_site_url( "wp-login.php?action=rp&key=$reset_key&login=" . rawurlencode( $safe_username ), 'login' );
-		}
+		$reset_url = $this->generate_password_reset_url( $user, $safe_username );
 		
 		$message = "This is a copy of the account information email sent to {$safe_email}.\n\n";
 		$message .= "---\n\n";
