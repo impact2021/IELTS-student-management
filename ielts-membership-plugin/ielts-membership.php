@@ -83,6 +83,8 @@ class Impact_Websites_Student_Management {
 	const AJAX_REENROL = 'iw_reenrol_student';
 	const AJAX_CREATE_USER = 'iw_create_user_manually';
 	const AJAX_BULK_UPDATE_EXPIRY = 'iw_bulk_update_expiry';
+	const AJAX_RESEND_WELCOME_STUDENT = 'iw_resend_welcome_student';
+	const AJAX_RESEND_WELCOME_ADMIN = 'iw_resend_welcome_admin';
 	const DEFAULT_REENROL_DAYS = 30;
 	const NONCE_DASH = 'iw_dashboard_nonce';
 	const NONCE_REGISTER = 'iw_register_nonce';
@@ -109,6 +111,8 @@ class Impact_Websites_Student_Management {
 		add_action( 'wp_ajax_' . self::AJAX_REENROL, [ $this, 'ajax_reenrol_student' ] );
 		add_action( 'wp_ajax_' . self::AJAX_CREATE_USER, [ $this, 'ajax_create_user_manually' ] );
 		add_action( 'wp_ajax_' . self::AJAX_BULK_UPDATE_EXPIRY, [ $this, 'ajax_bulk_update_expiry' ] );
+		add_action( 'wp_ajax_' . self::AJAX_RESEND_WELCOME_STUDENT, [ $this, 'ajax_resend_welcome_student' ] );
+		add_action( 'wp_ajax_' . self::AJAX_RESEND_WELCOME_ADMIN, [ $this, 'ajax_resend_welcome_admin' ] );
 
 		// Shortcodes
 		add_shortcode( 'iw_partner_dashboard', [ $this, 'shortcode_partner_dashboard' ] );
@@ -1183,6 +1187,115 @@ class Impact_Websites_Student_Management {
 	}
 
 	/**
+	 * AJAX handler: Resend welcome email to student with new password
+	 */
+	public function ajax_resend_welcome_student() {
+		if ( ! is_user_logged_in() || ! current_user_can( self::CAP_MANAGE ) ) {
+			wp_send_json_error( 'Unauthorized', 403 );
+		}
+		if ( empty( $_POST['iw_dash_nonce'] ) || ! wp_verify_nonce( wp_unslash( $_POST['iw_dash_nonce'] ), self::NONCE_DASH ) ) {
+			wp_send_json_error( 'Invalid request', 400 );
+		}
+		
+		$student_id = isset( $_POST['student_id'] ) ? intval( $_POST['student_id'] ) : 0;
+		if ( ! $student_id ) {
+			wp_send_json_error( 'Missing student ID', 400 );
+		}
+		
+		$user = get_userdata( $student_id );
+		if ( ! $user ) {
+			wp_send_json_error( 'Invalid user', 400 );
+		}
+		
+		// Check if user is a subscriber (active student)
+		if ( ! in_array( 'subscriber', $user->roles ) ) {
+			wp_send_json_error( 'User is not an active student', 403 );
+		}
+		
+		// Get user details
+		$email = $user->user_email;
+		$username = $user->user_login;
+		$first_name = get_user_meta( $student_id, 'first_name', true );
+		$last_name = get_user_meta( $student_id, 'last_name', true );
+		$exp = intval( get_user_meta( $student_id, self::META_USER_EXPIRY, true ) );
+		
+		if ( empty( $first_name ) ) {
+			$first_name = $username;
+		}
+		
+		// Generate new temporary password
+		$new_password = wp_generate_password( 16, false, false );
+		
+		// Update user password
+		wp_set_password( $new_password, $student_id );
+		
+		// Send welcome email with new password
+		$this->send_welcome_email( $student_id, $username, $new_password, $email, $first_name, $exp );
+		
+		wp_send_json_success( [
+			'message' => 'Welcome email sent to student with new temporary password'
+		] );
+	}
+
+	/**
+	 * AJAX handler: Resend welcome email copy to partner admin with new password
+	 */
+	public function ajax_resend_welcome_admin() {
+		if ( ! is_user_logged_in() || ! current_user_can( self::CAP_MANAGE ) ) {
+			wp_send_json_error( 'Unauthorized', 403 );
+		}
+		if ( empty( $_POST['iw_dash_nonce'] ) || ! wp_verify_nonce( wp_unslash( $_POST['iw_dash_nonce'] ), self::NONCE_DASH ) ) {
+			wp_send_json_error( 'Invalid request', 400 );
+		}
+		
+		$student_id = isset( $_POST['student_id'] ) ? intval( $_POST['student_id'] ) : 0;
+		if ( ! $student_id ) {
+			wp_send_json_error( 'Missing student ID', 400 );
+		}
+		
+		$user = get_userdata( $student_id );
+		if ( ! $user ) {
+			wp_send_json_error( 'Invalid user', 400 );
+		}
+		
+		// Check if user is a subscriber (active student)
+		if ( ! in_array( 'subscriber', $user->roles ) ) {
+			wp_send_json_error( 'User is not an active student', 403 );
+		}
+		
+		// Get current partner admin email
+		$partner_id = get_current_user_id();
+		$partner = get_userdata( $partner_id );
+		if ( ! $partner || empty( $partner->user_email ) ) {
+			wp_send_json_error( 'Could not get partner admin email', 500 );
+		}
+		
+		// Get user details
+		$email = $user->user_email;
+		$username = $user->user_login;
+		$first_name = get_user_meta( $student_id, 'first_name', true );
+		$last_name = get_user_meta( $student_id, 'last_name', true );
+		$exp = intval( get_user_meta( $student_id, self::META_USER_EXPIRY, true ) );
+		
+		if ( empty( $first_name ) ) {
+			$first_name = $username;
+		}
+		
+		// Generate new temporary password
+		$new_password = wp_generate_password( 16, false, false );
+		
+		// Update user password
+		wp_set_password( $new_password, $student_id );
+		
+		// Send welcome email copy to admin
+		$this->send_welcome_email_copy_to_admin( $partner->user_email, $username, $new_password, $email, $first_name, $exp );
+		
+		wp_send_json_success( [
+			'message' => 'Welcome email copy sent to admin with new temporary password'
+		] );
+	}
+
+	/**
 	 * Ensure user has manager meta assigned (for pre-existing users)
 	 * 
 	 * If user doesn't have a manager set, assigns the current partner admin as manager.
@@ -1544,11 +1657,11 @@ class Impact_Websites_Student_Management {
 						<span id="iw-bulk-selected-count" style="margin-left:15px;font-weight:bold;color:#0073aa;">(0 selected)</span>
 					</div>
 					<table class="widefat" id="iw-active-students-table">
-						<thead><tr><th><input type="checkbox" id="iw-select-all-header" title="Select all students" /></th><th>Name</th><th>Email</th><th>Last Login</th><th>Course Group</th><th>Expires</th><th>Extended Access</th><th>Action</th></tr></thead>
+						<thead><tr><th><input type="checkbox" id="iw-select-all-header" title="Select all students" /></th><th>Info</th><th>Last Login</th><th>Course Group</th><th>Expires</th><th>Extended Access</th><th>Actions</th></tr></thead>
 						<tbody>
 						<?php
 						if ( empty( $all_students ) ) {
-							echo '<tr><td colspan="8">No active students found.</td></tr>';
+							echo '<tr><td colspan="7">No active students found.</td></tr>';
 						} else {
 							$groups = $this->get_course_groups();
 							foreach ( $all_students as $s ) {
@@ -1577,8 +1690,13 @@ class Impact_Websites_Student_Management {
 								
 								echo '<tr id="iw-student-' . $student_id . '" data-firstname="' . esc_attr( strtolower( $first_name ) ) . '" data-lastname="' . esc_attr( strtolower( $last_name ) ) . '" data-email="' . esc_attr( strtolower( $email ) ) . '">';
 								echo '<td><input type="checkbox" class="iw-student-checkbox" data-student="' . $student_id . '" /></td>';
-								echo '<td>' . ( $full_name !== $email ? $full_name : '—' ) . '</td>';
-								echo '<td>' . $email . '</td>';
+								// Info column: name on top, email below
+								echo '<td>';
+								if ( $full_name !== $email ) {
+									echo '<strong>' . $full_name . '</strong><br>';
+								}
+								echo '<span style="font-size:0.9em;color:#666;">' . $email . '</span>';
+								echo '</td>';
 								echo '<td>' . esc_html( $last_login_text ) . '</td>';
 								echo '<td>';
 								echo '<select class="iw-group-select" data-student="' . $student_id . '" style="width:150px;font-size:12px;padding:4px;">';
@@ -1594,7 +1712,11 @@ class Impact_Websites_Student_Management {
 								echo '<input type="date" class="iw-expiry-input" id="iw-expiry-input-' . $student_id . '" data-student="' . $student_id . '" value="' . esc_attr( $exp_date_value ) . '" aria-label="Expiry date for ' . esc_attr( $full_name ) . '" />';
 								echo '<button class="button iw-update-expiry" data-student="' . $student_id . '" aria-label="Update expiry for ' . esc_attr( $full_name ) . '">Update</button>';
 								echo '</td>';
-								echo '<td><button class="button iw-revoke" data-student="' . $student_id . '">Revoke</button></td>';
+								echo '<td>';
+								echo '<button class="button iw-resend-student" data-student="' . $student_id . '" style="margin-bottom:4px;display:block;">Resend Welcome (Student)</button>';
+								echo '<button class="button iw-resend-admin" data-student="' . $student_id . '" style="margin-bottom:4px;display:block;">Resend Welcome (Admin)</button>';
+								echo '<button class="button iw-revoke" data-student="' . $student_id . '">Revoke</button>';
+								echo '</td>';
 								echo '</tr>';
 							}
 						}
@@ -1762,6 +1884,76 @@ class Impact_Websites_Student_Management {
 						}else{
 							alert('Error revoking student: ' + (d.data||d));
 						}
+					});
+				});
+			});
+
+			// Resend welcome email to student
+			document.querySelectorAll('.iw-resend-student').forEach(function(btn){
+				btn.addEventListener('click', function(){
+					const button = this;
+					if(!confirm('Resend welcome email to student? This will generate a new temporary password and reset their current password.')) return;
+					const student = button.getAttribute('data-student');
+					const originalText = button.textContent;
+					button.disabled = true;
+					button.textContent = 'Sending...';
+					
+					const data = new FormData();
+					data.append('action','<?php echo self::AJAX_RESEND_WELCOME_STUDENT; ?>');
+					data.append('student_id', student);
+					data.append('iw_dash_nonce', '<?php echo $dash_nonce; ?>');
+					fetch('<?php echo admin_url( 'admin-ajax.php' ); ?>', {
+						method:'POST',
+						credentials:'same-origin',
+						body:data
+					}).then(r=>r.json()).then(d=>{
+						if(d.success){
+							alert('Welcome email sent to student with new temporary password.');
+							location.reload();
+						}else{
+							alert('Error sending email: ' + (d.data||d));
+							button.disabled = false;
+							button.textContent = originalText;
+						}
+					}).catch(err=>{
+						alert('Network error. Please try again.');
+						button.disabled = false;
+						button.textContent = originalText;
+					});
+				});
+			});
+
+			// Resend welcome email to admin
+			document.querySelectorAll('.iw-resend-admin').forEach(function(btn){
+				btn.addEventListener('click', function(){
+					const button = this;
+					if(!confirm('Resend welcome email copy to you? This will generate a new temporary password and reset the student\'s current password.')) return;
+					const student = button.getAttribute('data-student');
+					const originalText = button.textContent;
+					button.disabled = true;
+					button.textContent = 'Sending...';
+					
+					const data = new FormData();
+					data.append('action','<?php echo self::AJAX_RESEND_WELCOME_ADMIN; ?>');
+					data.append('student_id', student);
+					data.append('iw_dash_nonce', '<?php echo $dash_nonce; ?>');
+					fetch('<?php echo admin_url( 'admin-ajax.php' ); ?>', {
+						method:'POST',
+						credentials:'same-origin',
+						body:data
+					}).then(r=>r.json()).then(d=>{
+						if(d.success){
+							alert('Welcome email copy sent to your email with new temporary password.');
+							location.reload();
+						}else{
+							alert('Error sending email: ' + (d.data||d));
+							button.disabled = false;
+							button.textContent = originalText;
+						}
+					}).catch(err=>{
+						alert('Network error. Please try again.');
+						button.disabled = false;
+						button.textContent = originalText;
 					});
 				});
 			});
