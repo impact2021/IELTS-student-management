@@ -1276,7 +1276,11 @@ class Impact_Websites_Student_Management {
 		}
 		
 		// Send welcome email copy to admin with password reset link (does not reset current password)
-		$this->send_resend_welcome_email_copy_to_admin( $partner->user_email, $username, $email, $first_name, $exp );
+		$result = $this->send_resend_welcome_email_copy_to_admin( $partner->user_email, $student_id, $username, $email, $first_name, $exp );
+		
+		if ( ! $result ) {
+			wp_send_json_error( 'Failed to send email', 500 );
+		}
 		
 		wp_send_json_success( [
 			'message' => 'Welcome email copy sent to admin with password reset link'
@@ -2742,6 +2746,32 @@ class Impact_Websites_Student_Management {
 	}
 
 	/**
+	 * Generate account information email content with password reset link
+	 * 
+	 * @param string $safe_username Sanitized username
+	 * @param string $safe_email Sanitized email address
+	 * @param string $safe_first_name Sanitized first name
+	 * @param string $reset_url Password reset URL
+	 * @param string $login_url Login page URL
+	 * @param int $expiry_ts Expiry timestamp
+	 * @return string The email message content
+	 */
+	private function generate_account_info_email_content( $safe_username, $safe_email, $safe_first_name, $reset_url, $login_url, $expiry_ts ) {
+		$message = "Hello {$safe_first_name},\n\n";
+		$message .= "You requested your account information.\n\n";
+		$message .= "Your login details:\n";
+		$message .= "Username: {$safe_username}\n";
+		$message .= "Email: {$safe_email}\n\n";
+		$message .= "Login URL: {$login_url}\n\n";
+		$message .= "If you have forgotten your password, you can reset it using this link:\n";
+		$message .= "{$reset_url}\n\n";
+		$message .= "Your access expires on: " . $this->format_date( $expiry_ts ) . "\n\n";
+		$message .= "You are enrolled in all available courses.";
+		
+		return $message;
+	}
+
+	/**
 	 * Send resend welcome email to student with password reset link (does not reset current password)
 	 * 
 	 * @param int $user_id The user ID
@@ -2765,16 +2795,8 @@ class Impact_Websites_Student_Management {
 		$user = get_userdata( $user_id );
 		$reset_url = $this->generate_password_reset_url( $user, $safe_username );
 		
-		$message = "Hello {$safe_first_name},\n\n";
-		$message .= "You requested your account information.\n\n";
-		$message .= "Your login details:\n";
-		$message .= "Username: {$safe_username}\n";
-		$message .= "Email: {$safe_email}\n\n";
-		$message .= "Login URL: {$login_url}\n\n";
-		$message .= "If you have forgotten your password, you can reset it using this link:\n";
-		$message .= "{$reset_url}\n\n";
-		$message .= "Your access expires on: " . $this->format_date( $expiry_ts ) . "\n\n";
-		$message .= "You are enrolled in all available courses.";
+		// Generate email content
+		$message = $this->generate_account_info_email_content( $safe_username, $safe_email, $safe_first_name, $reset_url, $login_url, $expiry_ts );
 		
 		wp_mail( $to, $subject, $message );
 	}
@@ -2783,12 +2805,14 @@ class Impact_Websites_Student_Management {
 	 * Send copy of resend welcome email to admin with password reset link (does not reset current password)
 	 * 
 	 * @param string $admin_email The admin email address
+	 * @param int $user_id The user ID
 	 * @param string $username The username
 	 * @param string $email The student email address
 	 * @param string $first_name The first name
 	 * @param int $expiry_ts The expiry timestamp
+	 * @return bool True on success, false on failure
 	 */
-	private function send_resend_welcome_email_copy_to_admin( $admin_email, $username, $email, $first_name, $expiry_ts ) {
+	private function send_resend_welcome_email_copy_to_admin( $admin_email, $user_id, $username, $email, $first_name, $expiry_ts ) {
 		// Sanitize all parameters for email content (defensive)
 		$to = sanitize_email( $admin_email );
 		$safe_username = sanitize_text_field( $username );
@@ -2800,28 +2824,21 @@ class Impact_Websites_Student_Management {
 		$login_url = $this->get_url_from_page_setting( $options['login_page_url'] ?? 0, wp_login_url() );
 		
 		// Get the user for password reset key generation
-		$user = get_user_by( 'login', $username );
+		$user = get_userdata( $user_id );
 		if ( ! $user ) {
-			return; // Can't send email if user doesn't exist
+			error_log( "Failed to send resend welcome email copy to admin: User ID {$user_id} not found" );
+			return false; // Can't send email if user doesn't exist
 		}
 		
 		// Generate password reset link
 		$reset_url = $this->generate_password_reset_url( $user, $safe_username );
 		
+		// Generate email content with admin-specific prefix
 		$message = "This is a copy of the account information email sent to {$safe_email}.\n\n";
 		$message .= "---\n\n";
-		$message .= "Hello {$safe_first_name},\n\n";
-		$message .= "You requested your account information.\n\n";
-		$message .= "Your login details:\n";
-		$message .= "Username: {$safe_username}\n";
-		$message .= "Email: {$safe_email}\n\n";
-		$message .= "Login URL: {$login_url}\n\n";
-		$message .= "If you have forgotten your password, you can reset it using this link:\n";
-		$message .= "{$reset_url}\n\n";
-		$message .= "Your access expires on: " . $this->format_date( $expiry_ts ) . "\n\n";
-		$message .= "You are enrolled in all available courses.";
+		$message .= $this->generate_account_info_email_content( $safe_username, $safe_email, $safe_first_name, $reset_url, $login_url, $expiry_ts );
 		
-		wp_mail( $to, $subject, $message );
+		return wp_mail( $to, $subject, $message );
 	}
 
 	/* Shortcode: show logged-in user's expiry and account management */
