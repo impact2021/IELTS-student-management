@@ -26,16 +26,27 @@ const authController = {
 
       // If planId is provided, create membership and payment during registration
       if (planId) {
+        // Validate planId
+        const planIdNum = parseInt(planId);
+        if (!planIdNum || planIdNum <= 0) {
+          return res.status(400).json({ error: 'Invalid plan ID' });
+        }
+
+        // Verify plan exists
+        const plan = await MembershipPlan.findById(planIdNum);
+        if (!plan) {
+          return res.status(404).json({ error: 'Plan not found' });
+        }
+
         // Create membership
         membership = await UserMembership.create({
           userId: user.id,
-          planId,
+          planId: planIdNum,
           paymentStatus: 'pending'
         });
 
         // If payment info provided, create payment record
         if (paymentMethod && transactionId) {
-          const plan = await MembershipPlan.findById(planId);
           payment = await Payment.create({
             membershipId: membership.id,
             amount: plan.price,
@@ -44,8 +55,8 @@ const authController = {
             status: 'completed'
           });
           
-          // Refresh membership to get updated payment status
-          membership = await UserMembership.findById(membership.id);
+          // Update membership object with the new payment status (paid)
+          membership.payment_status = 'paid';
         }
       }
 
