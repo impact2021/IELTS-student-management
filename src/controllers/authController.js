@@ -1,12 +1,15 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const UserMembership = require('../models/UserMembership');
+const MembershipPlan = require('../models/MembershipPlan');
+const Payment = require('../models/Payment');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this-in-production';
 
 const authController = {
   async register(req, res) {
     try {
-      const { email, password, firstName, lastName } = req.body;
+      const { email, password, firstName, lastName, planId, paymentMethod, transactionId } = req.body;
 
       if (!email || !password || !firstName || !lastName) {
         return res.status(400).json({ error: 'All fields are required' });
@@ -18,10 +21,40 @@ const authController = {
         expiresIn: '7d'
       });
 
+      let membership = null;
+      let payment = null;
+
+      // If planId is provided, create membership and payment during registration
+      if (planId) {
+        // Create membership
+        membership = await UserMembership.create({
+          userId: user.id,
+          planId,
+          paymentStatus: 'pending'
+        });
+
+        // If payment info provided, create payment record
+        if (paymentMethod && transactionId) {
+          const plan = await MembershipPlan.findById(planId);
+          payment = await Payment.create({
+            membershipId: membership.id,
+            amount: plan.price,
+            paymentMethod,
+            transactionId,
+            status: 'completed'
+          });
+          
+          // Refresh membership to get updated payment status
+          membership = await UserMembership.findById(membership.id);
+        }
+      }
+
       res.status(201).json({
         message: 'User registered successfully',
         user,
-        token
+        token,
+        membership,
+        payment
       });
     } catch (error) {
       res.status(400).json({ error: error.message });

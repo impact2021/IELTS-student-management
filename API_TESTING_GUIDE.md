@@ -22,6 +22,8 @@ The server will be available at `http://localhost:3000`
 
 ### 2. Register a New User
 
+**Basic Registration (without membership plan):**
+
 ```bash
 curl -X POST http://localhost:3000/api/auth/register \
   -H "Content-Type: application/json" \
@@ -33,7 +35,23 @@ curl -X POST http://localhost:3000/api/auth/register \
   }'
 ```
 
-**Response:**
+**Registration with Membership Plan and Payment:**
+
+```bash
+curl -X POST http://localhost:3000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "student@example.com",
+    "password": "SecurePass123",
+    "firstName": "John",
+    "lastName": "Doe",
+    "planId": 2,
+    "paymentMethod": "credit_card",
+    "transactionId": "txn_123456"
+  }'
+```
+
+**Response with Membership and Payment:**
 ```json
 {
   "message": "User registered successfully",
@@ -44,9 +62,38 @@ curl -X POST http://localhost:3000/api/auth/register \
     "last_name": "Doe",
     "created_at": "2024-12-07 10:00:00"
   },
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "membership": {
+    "id": 1,
+    "user_id": 1,
+    "plan_id": 2,
+    "start_date": "2025-12-28T04:04:45.193Z",
+    "end_date": "2026-01-27T04:04:45.193Z",
+    "status": "active",
+    "payment_status": "paid",
+    "created_at": "2025-12-28 04:04:45",
+    "plan_name": "Basic",
+    "description": "Perfect for beginners starting their IELTS journey",
+    "price": 29.99
+  },
+  "payment": {
+    "id": 1,
+    "membership_id": 1,
+    "amount": 29.99,
+    "payment_date": "2025-12-28 04:04:45",
+    "payment_method": "credit_card",
+    "transaction_id": "txn_test_12345",
+    "status": "completed"
+  }
 }
 ```
+
+**Optional Parameters for Registration:**
+- `planId` (number): ID of the membership plan to subscribe to
+- `paymentMethod` (string): Payment method used (e.g., "credit_card", "paypal")
+- `transactionId` (string): Unique transaction ID from payment gateway
+
+If `planId` is provided without payment details, a membership with "pending" payment status will be created.
 
 **Save the token** - you'll need it for authenticated requests!
 
