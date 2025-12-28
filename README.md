@@ -294,6 +294,32 @@ Content-Type: application/json
 }
 ```
 
+**Optional: Register with membership plan and payment**
+
+You can now include payment information at registration time to subscribe to a plan immediately:
+
+```http
+POST /api/auth/register
+Content-Type: application/json
+
+{
+  "email": "student@example.com",
+  "password": "securepassword",
+  "firstName": "John",
+  "lastName": "Doe",
+  "planId": 2,
+  "paymentMethod": "credit_card",
+  "transactionId": "txn_123456"
+}
+```
+
+Optional parameters:
+- `planId` (number): ID of the membership plan to subscribe to
+- `paymentMethod` (string): Payment method used (e.g., "credit_card", "paypal")
+- `transactionId` (string): Unique transaction ID from payment gateway
+
+If `planId` is provided without payment details, a membership with "pending" payment status will be created.
+
 #### Login
 ```http
 POST /api/auth/login
